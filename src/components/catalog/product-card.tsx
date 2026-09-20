@@ -47,7 +47,7 @@ export function ProductCard({ product, priority }: Props) {
         </Link>
 
         {discount ? (
-          <span className="absolute left-4 top-4 rounded-full bg-signal px-2.5 py-1 text-[12px] font-semibold text-white">
+          <span className="absolute left-4 top-4 rounded-full bg-signal px-2.5 py-1 text-[12px] font-semibold text-black">
             −{discount}%
           </span>
         ) : null}
@@ -59,7 +59,7 @@ export function ProductCard({ product, priority }: Props) {
           aria-label={dict.product.compare}
           className={`absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full transition-all duration-300 ${
             inCompare
-              ? "bg-signal text-white opacity-100"
+              ? "bg-signal text-black opacity-100"
               : "bg-ink-700/80 text-bone-dim opacity-0 backdrop-blur group-hover:opacity-100 hover:text-bone"
           }`}
         >
@@ -75,7 +75,7 @@ export function ProductCard({ product, priority }: Props) {
               ? "cursor-not-allowed bg-ink-700 text-bone-faint"
               : mounted && inCart
                 ? "bg-stock text-ink-900"
-                : "bg-signal text-white hover:bg-signal-hot"
+                : "bg-signal text-black hover:bg-signal-hot"
           }`}
         >
           {mounted && inCart ? <IconCheck className="h-4 w-4" /> : <IconCart className="h-4 w-4" />}

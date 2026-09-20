@@ -43,7 +43,7 @@ export function BuyBox({ product }: { product: Product }) {
             </p>
           </div>
           {discount ? (
-            <span className="rounded-full bg-signal px-3 py-1.5 text-[13px] font-semibold text-white">−{discount}%</span>
+            <span className="rounded-full bg-signal px-3 py-1.5 text-[13px] font-semibold text-black">−{discount}%</span>
           ) : null}
         </div>
 
@@ -81,7 +81,7 @@ export function BuyBox({ product }: { product: Product }) {
                 ? "cursor-not-allowed bg-ink-700 text-bone-faint"
                 : mounted && inCart
                   ? "bg-stock text-ink-900"
-                  : "bg-signal text-white hover:bg-signal-hot"
+                  : "bg-signal text-black hover:bg-signal-hot"
             }`}
           >
             {mounted && inCart ? (

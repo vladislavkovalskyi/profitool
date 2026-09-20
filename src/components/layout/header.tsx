@@ -9,6 +9,7 @@ import { useI18n } from "@/i18n/context";
 import { brands, categories, platforms } from "@/data/taxonomy";
 import { bestsellers, categoryHref, categoryIcon, countForPlatform, href, imageOf, price } from "@/lib/shop";
 import { useCart, useCompare, usePlatform } from "@/store/shop";
+import { Logo } from "@/components/layout/logo";
 import {
   IconBattery,
   IconBurger,
@@ -53,16 +54,7 @@ export function Header() {
             {mobileOpen ? <IconClose className="h-6 w-6" /> : <IconBurger className="h-6 w-6" />}
           </button>
 
-          <Link href={href(locale)} className="shrink-0" aria-label="Profitool">
-            <span className="flex items-baseline gap-[2px]">
-              <span className="font-display text-[28px] font-black uppercase leading-none tracking-[-0.01em] text-bone">
-                Profi
-              </span>
-              <span className="font-display text-[28px] font-black uppercase leading-none tracking-[-0.01em] text-signal">
-                tool
-              </span>
-            </span>
-          </Link>
+          <Logo href={href(locale)} />
 
           <button
             type="button"
@@ -228,7 +220,7 @@ function Action({
     >
       {children}
       {count > 0 ? (
-        <span className="t-num absolute right-1 top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-signal px-1 text-[11px] font-bold text-white">
+        <span className="t-num absolute right-1 top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-signal px-1 text-[11px] font-bold text-black">
           {count}
         </span>
       ) : null}

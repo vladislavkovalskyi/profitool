@@ -39,12 +39,12 @@ export function PlatformPicker() {
               aria-pressed={isActive}
               className={`rounded-full px-5 py-3 text-[15px] transition-colors ${
                 isActive
-                  ? "bg-signal text-white"
+                  ? "bg-signal text-black"
                   : "bg-ink-700 text-bone-dim hover:bg-ink-600 hover:text-bone"
               }`}
             >
               {platform.name}
-              <span className={`ml-2 ${isActive ? "text-white/70" : "text-bone-faint"}`}>
+              <span className={`ml-2 ${isActive ? "text-black/70" : "text-bone-faint"}`}>
                 {countForPlatform(platform.slug)}
               </span>
             </button>

@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────────────────
-   PROFITOOL · дизайн-система «Цех»
-   Графит, металл, один сигнальный цвет на весь экран.
+   PROFITOOL · дизайн-система «Витрина»
+   Чёрный фон, тёплый белый текст, акцент из градиента логотипа.
+   Спецификация: DESIGN.md
    ───────────────────────────────────────────────────────────── */
 
 @theme {
@@ -16,22 +17,27 @@
   --color-ink-500: #343a3f;
 
   /* текст: тёплый белый вместо чистого #FFF, он режет глаз на графите */
-  --color-bone: #edeae4;
-  --color-bone-dim: #9a9b97;
-  --color-bone-faint: #6b6d6a;
+  --color-bone: #f2efe9;
+  --color-bone-dim: #a0a19d;
+  --color-bone-faint: #8a8b87;
 
-  /* сигнальный. Появляется только там, где надо нажать */
-  --color-signal: #ff4a00;
-  --color-signal-hot: #ff6a2b;
-  --color-signal-deep: #c23200;
+  /* акцент из логотипа. Заливка кнопок и бейджей, текст на ней только чёрный (6,3:1) */
+  --color-signal: #f18f37;
+  --color-signal-hot: #f5a04f;
+  --color-signal-deep: #b8641d;
+  /* акцентный текст на чёрном: активный пункт меню, ссылки (9:1) */
+  --color-signal-text: #f5a21a;
+  /* концы градиента логотипа, в интерфейсе градиент не используется */
+  --color-brand-a: #f5a21a;
+  --color-brand-b: #ed7c53;
 
   /* склад */
   --color-stock: #a6c34f;
   --color-warn: #ffb020;
 
-  --font-display: var(--font-sofia), "Arial Narrow", sans-serif;
-  --font-ui: var(--font-geologica), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geologica), ui-sans-serif, sans-serif;
+  --font-display: var(--font-unbounded), "Arial Black", sans-serif;
+  --font-ui: var(--font-golos), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-golos), ui-sans-serif, sans-serif;
 
   --radius-metal: 10px;
 
@@ -42,8 +48,8 @@
 }
 
 :root {
-  --hair: rgba(255, 255, 255, 0.07);
-  --hair-strong: rgba(255, 255, 255, 0.13);
+  --hair: rgba(255, 255, 255, 0.1);
+  --hair-strong: rgba(255, 255, 255, 0.18);
   --edge: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --gutter: 24px;
 }
@@ -62,8 +68,7 @@
     background: var(--color-ink-900);
     color: var(--color-bone);
     font-family: var(--font-ui);
-    font-variation-settings: "SHRP" 28;
-    font-size: 15px;
+    font-size: 17px;
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
@@ -71,7 +76,7 @@
 
   ::selection {
     background: var(--color-signal);
-    color: #fff;
+    color: #000;
   }
 
   :focus-visible {
@@ -116,39 +121,37 @@
 
 /* ── Типографика ───────────────────────────────────────────── */
 
+/* Unbounded широкий: размеры ниже подобраны под него, регистр обычный. */
 @utility t-hero {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(3rem, 7.4vw, 8.2rem);
-  line-height: 0.86;
+  font-size: clamp(3.25rem, 6vw, 5.5rem);
+  line-height: 1.02;
   letter-spacing: -0.02em;
-  text-transform: uppercase;
 }
 
 @utility t-h1 {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(2.4rem, 5vw, 4.6rem);
-  line-height: 0.88;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
+  font-size: clamp(2rem, 3.6vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
 }
 
 @utility t-h2 {
   font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(1.75rem, 3vw, 2.75rem);
-  line-height: 0.94;
-  text-transform: uppercase;
+  font-weight: 600;
+  font-size: clamp(1.5rem, 2.2vw, 1.75rem);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
 
 @utility t-h3 {
   font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 1.4rem;
-  line-height: 1;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
+  font-weight: 600;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 /* Служебная надпись: артикул, метка склада, номер раздела. */
@@ -203,7 +206,7 @@
   justify-content: center;
   gap: 0.6em;
   background: var(--color-signal);
-  color: #fff;
+  color: #000;
   font-family: var(--font-ui);
   font-weight: 600;
   font-size: 1rem;

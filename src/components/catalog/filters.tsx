@@ -49,7 +49,7 @@ export function Filters({ total }: { total: number }) {
         <IconFilter className="h-[18px] w-[18px]" />
         {dict.catalog.filters}
         {active > 0 ? (
-          <span className="t-num grid h-5 min-w-5 place-items-center bg-signal px-1 text-[11px] text-white">
+          <span className="t-num grid h-5 min-w-5 place-items-center bg-signal px-1 text-[11px] text-black">
             {active}
           </span>
         ) : null}
@@ -207,7 +207,7 @@ function Check({
       <input type="checkbox" checked={checked} onChange={onChange} className="peer sr-only" />
       <span
         className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[5px] transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-signal ${
-          checked ? "bg-signal text-white" : "bg-ink-700 text-transparent"
+          checked ? "bg-signal text-black" : "bg-ink-700 text-transparent"
         }`}
       >
         <IconCheck className="h-3 w-3" strokeWidth={2.4} />

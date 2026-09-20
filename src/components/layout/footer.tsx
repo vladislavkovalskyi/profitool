@@ -2,16 +2,14 @@ import Link from "next/link";
 import type { Dict, Locale } from "@/i18n";
 import { categories } from "@/data/taxonomy";
 import { categoryHref, href } from "@/lib/shop";
+import { Logo } from "@/components/layout/logo";
 
 export function Footer({ locale, dict }: { locale: Locale; dict: Dict }) {
   return (
     <footer className="mt-24 border-t border-[var(--hair)]">
       <div className="shell flex flex-col gap-10 py-14 lg:flex-row lg:justify-between">
         <div>
-          <span className="flex items-baseline gap-[2px]">
-            <span className="font-display text-[24px] font-black uppercase leading-none text-bone">Profi</span>
-            <span className="font-display text-[24px] font-black uppercase leading-none text-signal">tool</span>
-          </span>
+          <Logo href={href(locale)} />
           <a
             href="tel:0800331122"
             className="mt-5 block text-[22px] text-bone transition-colors hover:text-signal"

@@ -110,7 +110,7 @@ export function CompareTable() {
                           ? "cursor-not-allowed bg-ink-700 text-bone-faint"
                           : inCart
                             ? "bg-stock text-ink-900"
-                            : "bg-signal text-white hover:bg-signal-hot"
+                            : "bg-signal text-black hover:bg-signal-hot"
                       }`}
                     >
                       {inCart ? <IconCheck className="h-4 w-4" /> : <IconCart className="h-4 w-4" />}
