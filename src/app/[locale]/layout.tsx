@@ -1,25 +1,27 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Geologica, Sofia_Sans_Extra_Condensed } from "next/font/google";
+import { Golos_Text, Unbounded } from "next/font/google";
 import "../globals.css";
 import { getDict, htmlLang, isLocale, locales, type Locale } from "@/i18n";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { CompareBar } from "@/components/catalog/compare-bar";
 import { LocaleProvider } from "@/i18n/context";
+import { THEME_SCRIPT } from "@/lib/theme";
 
-/** Трафаретный узкий гротеск: заголовки читаются как маркировка на ящике. */
-const sofia = Sofia_Sans_Extra_Condensed({
+/** Заголовки, цены, слово в логотипе. Полная кириллица, включая ґ є і ї. */
+const unbounded = Unbounded({
   subsets: ["cyrillic", "latin"],
-  variable: "--font-sofia",
+  weight: ["600", "900"],
+  variable: "--font-unbounded",
   display: "swap",
 });
 
-/** Интерфейсный. Ось SHRP заострена в globals.css до 28. */
-const geologica = Geologica({
+/** Весь остальной текст. */
+const golos = Golos_Text({
   subsets: ["cyrillic", "latin"],
-  axes: ["SHRP"],
-  variable: "--font-geologica",
+  weight: ["400", "500", "600"],
+  variable: "--font-golos",
   display: "swap",
 });
 
@@ -33,9 +35,22 @@ export async function generateMetadata({ params }: LocaleParams): Promise<Metada
   const { locale } = await params;
   const dict = getDict(isLocale(locale) ? locale : "ua");
   return {
+    // Адрес нужен, чтобы OG-картинка получила полный URL. Настоящий домен задаётся в NEXT_PUBLIC_SITE_URL.
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
     title: dict.meta.title,
     description: dict.meta.description,
-    icons: { icon: "/icons/favicon.svg" },
+    icons: {
+      icon: [
+        { url: "/brand/logo.svg", type: "image/svg+xml" },
+        { url: "/brand/mark-32.png", sizes: "32x32", type: "image/png" },
+      ],
+      apple: "/brand/apple-touch-icon.png",
+    },
+    openGraph: {
+      title: dict.meta.title,
+      description: dict.meta.description,
+      images: [{ url: "/brand/og-base.png", width: 1200, height: 630 }],
+    },
   };
 }
 
@@ -51,9 +66,15 @@ export default async function LocaleLayout({
   return (
     <html
       lang={htmlLang[typed]}
-      className={`${sofia.variable} ${geologica.variable}`}
+      className={`${unbounded.variable} ${golos.variable}`}
+      suppressHydrationWarning
     >
-      <body>
+      <head>
+        {/* Тема до первой отрисовки, иначе светлая тема мигает чёрным. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
+      {/* Расширения браузера дописывают свои атрибуты в body до гидратации, React ругается на несовпадение. */}
+      <body suppressHydrationWarning>
         <LocaleProvider locale={typed}>
           <Header />
           <main className="min-h-[60vh]">{children}</main>

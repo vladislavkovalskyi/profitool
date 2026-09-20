@@ -5,8 +5,8 @@ import { getDict, isLocale } from "@/i18n";
 import { categories, categoryBySlug } from "@/data/taxonomy";
 import { applyQuery, categoryHref, href, parseQuery } from "@/lib/shop";
 import { ProductCard } from "@/components/catalog/product-card";
-import { Filters, SortSelect } from "@/components/catalog/filters";
-import { IconChevron } from "@/components/ui/icons";
+import { ActiveFilters, Filters, SortSelect } from "@/components/catalog/filters";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 
 type Params = {
   params: Promise<{ locale: string; slug?: string[] }>;
@@ -30,29 +30,21 @@ export default async function CatalogPage({ params, searchParams }: Params) {
   const query = parseQuery(search, categorySlug);
   const found = applyQuery(query);
 
-  return (
-    <div className="shell py-10">
-      <nav className="flex items-center gap-2 text-[13px] text-bone-faint">
-        <Link href={href(locale)} className="transition-colors hover:text-signal">
-          Profitool
-        </Link>
-        <IconChevron className="h-3 w-3" />
-        <Link href={categoryHref(locale)} className="transition-colors hover:text-signal">
-          {dict.catalog.title}
-        </Link>
-        {category ? (
-          <>
-            <IconChevron className="h-3 w-3" />
-            <span className="text-bone">{category.name[locale]}</span>
-          </>
-        ) : null}
-      </nav>
+  const crumbs = [
+    { label: dict.common.home, href: href(locale) },
+    { label: dict.catalog.title, href: category ? categoryHref(locale) : undefined },
+    ...(category ? [{ label: category.name[locale] }] : []),
+  ];
 
-      <header className="mt-5 flex flex-wrap items-end justify-between gap-5 pb-2">
+  return (
+    <div className="shell pb-8 pt-7">
+      <Breadcrumbs items={crumbs} label={dict.catalog.breadcrumbs} />
+
+      <header className="mt-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div>
           <h1 className="t-h1 text-bone">{category ? category.name[locale] : dict.catalog.all}</h1>
-          <p className="mt-3 text-[14px] text-bone-dim">
-            {dict.catalog.found(found.length)}
+          <p className="mt-3.5 text-[17px] text-bone-dim">
+            {dict.catalog.models(found.length)}
             {category ? ` · ${category.blurb[locale]}` : ""}
           </p>
         </div>
@@ -64,37 +56,37 @@ export default async function CatalogPage({ params, searchParams }: Params) {
       {!category ? (
         <div className="mt-6 flex flex-wrap gap-2">
           {categories.map((item) => (
-            <Link
-              key={item.slug}
-              href={categoryHref(locale, item.slug)}
-              className="rounded-full bg-ink-800 px-4 py-2.5 text-[14px] text-bone-dim transition-colors hover:bg-ink-750 hover:text-bone"
-            >
+            <Link key={item.slug} href={categoryHref(locale, item.slug)} className="chip !h-11 !px-5">
               {item.name[locale]}
             </Link>
           ))}
         </div>
       ) : null}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[264px_1fr]">
-        <aside className="lg:sticky lg:top-[92px] lg:self-start">
+      <div className="mt-9 grid gap-x-14 gap-y-6 lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start">
+        <aside aria-label={dict.catalog.filters}>
           <Suspense fallback={null}>
-            <Filters total={found.length} />
+            <Filters total={found.length} category={categorySlug} />
           </Suspense>
         </aside>
 
         <div>
+          <Suspense fallback={null}>
+            <ActiveFilters />
+          </Suspense>
+
           {found.length === 0 ? (
-            <div className="rounded-[24px] bg-ink-800 px-6 py-24 text-center">
+            <div className="border-t border-[var(--hair)] py-24 text-center">
               <p className="t-h2 text-bone">{dict.catalog.empty}</p>
               <p className="mt-4 text-bone-dim">{dict.catalog.emptyText}</p>
-              <Link href={categoryHref(locale)} className="ghost-btn mt-8 inline-flex">
+              <Link href={category ? categoryHref(locale, category.slug) : categoryHref(locale)} className="ghost-btn mt-8">
                 {dict.catalog.resetAll}
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:gap-x-10 md:gap-y-12 xl:grid-cols-3">
               {found.map((product, index) => (
-                <ProductCard key={product.slug} product={product} priority={index < 4} />
+                <ProductCard key={product.slug} product={product} size="catalog" priority={index < 3} />
               ))}
             </div>
           )}

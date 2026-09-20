@@ -1,39 +1,53 @@
 "use client";
 
 import Link from "next/link";
+import { useMounted } from "@/lib/use-mounted";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { swapLocale, type Locale } from "@/i18n";
 import { useI18n } from "@/i18n/context";
 import { brands, categories, platforms } from "@/data/taxonomy";
-import { bestsellers, categoryHref, categoryIcon, countForPlatform, href, imageOf, price } from "@/lib/shop";
-import { useCart, useCompare, usePlatform } from "@/store/shop";
 import {
-  IconBattery,
+  bestsellers,
+  cartTotals,
+  categoryHref,
+  categoryIcon,
+  countForPlatform,
+  countIn,
+  href,
+  imageOf,
+  price,
+  productHref,
+} from "@/lib/shop";
+import { useCart, useCompare, useWishlist } from "@/store/shop";
+import { Logo } from "@/components/layout/logo";
+import { ThemeRow, ThemeToggle } from "@/components/layout/theme-toggle";
+import {
   IconBurger,
   IconCart,
   IconClose,
   IconCompare,
+  IconHeart,
   IconSearch,
+  IconUser,
 } from "@/components/ui/icons";
 
 export function Header() {
   const { locale, dict } = useI18n();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
-
-  useEffect(() => {
-    setMenuOpen(false);
-    setMobileOpen(false);
-  }, [pathname]);
+  // Меню открыто только на той странице, где его открыли: при переходе оно закрывается
+  // само, без setState в эффекте.
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [mobileFor, setMobileFor] = useState<string | null>(null);
+  const menuOpen = menuFor === pathname;
+  const mobileOpen = mobileFor === pathname;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setMenuOpen(false);
-        setMobileOpen(false);
+        setMenuFor(null);
+        setMobileFor(null);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -42,56 +56,141 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50">
-      <div className="border-b border-[var(--hair)] bg-ink-900/80 backdrop-blur-2xl">
-        <div className="shell flex h-[76px] items-center gap-5">
-          <button
-            type="button"
-            onClick={() => setMobileOpen((v) => !v)}
-            className="text-bone lg:hidden"
-            aria-label={dict.nav.menu}
-          >
-            {mobileOpen ? <IconClose className="h-6 w-6" /> : <IconBurger className="h-6 w-6" />}
-          </button>
+      {/* Размытие на отдельном слое: backdrop-filter у самой шапки сделал бы её
+          «содержащим блоком» для fixed-меню, и оно схлопнулось бы по высоте шапки. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 border-b border-[var(--hair)] bg-ink-900/90 backdrop-blur-xl"
+      />
+      <div className="shell relative flex h-[var(--header-h)] items-center gap-2 lg:gap-7">
+        <button
+          type="button"
+          onClick={() => setMobileFor(mobileOpen ? null : pathname)}
+          aria-expanded={mobileOpen}
+          aria-label={dict.nav.menu}
+          className="icon-btn -ml-2.5 !text-bone lg:hidden"
+        >
+          {mobileOpen ? <IconClose className="h-6 w-6" /> : <IconBurger className="h-6 w-6" />}
+        </button>
 
-          <Link href={href(locale)} className="shrink-0" aria-label="Profitool">
-            <span className="flex items-baseline gap-[2px]">
-              <span className="font-display text-[28px] font-black uppercase leading-none tracking-[-0.01em] text-bone">
-                Profi
-              </span>
-              <span className="font-display text-[28px] font-black uppercase leading-none tracking-[-0.01em] text-signal">
-                tool
-              </span>
-            </span>
+        <Logo href={href(locale)} />
+
+        <button
+          type="button"
+          onClick={() => setMenuFor(menuOpen ? null : pathname)}
+          aria-expanded={menuOpen}
+          className="signal-btn hidden shrink-0 lg:inline-flex"
+        >
+          {menuOpen ? <IconClose className="h-[18px] w-[18px]" /> : <IconBurger className="h-[18px] w-[18px]" />}
+          {dict.nav.catalog}
+        </button>
+
+        <SearchBox className="relative ml-2 hidden flex-1 md:block lg:ml-0" />
+
+        <div className="ml-auto flex shrink-0 items-center gap-0.5 lg:ml-0">
+          <Link
+            href={href(locale, "/search")}
+            aria-label={dict.nav.search}
+            className="icon-btn !text-bone md:hidden"
+          >
+            <IconSearch className="h-[22px] w-[22px]" />
           </Link>
-
-          <button
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-expanded={menuOpen}
-            className={`hidden shrink-0 rounded-metal px-5 py-2.5 text-[15px] transition-colors lg:block ${
-              menuOpen ? "bg-ink-700 text-bone" : "text-bone-dim hover:text-bone"
-            }`}
-          >
-            {dict.nav.catalog}
-          </button>
-
-          <SearchBox className="relative hidden max-w-xl flex-1 md:block" />
-
-          <div className="ml-auto flex shrink-0 items-center gap-1">
-            <Actions />
-            <LangSwitch locale={locale} pathname={pathname} />
-          </div>
-        </div>
-
-        {/* На телефоне поиск не помещается в строку с логотипом, поэтому живёт под ней. */}
-        <div className="shell pb-3 md:hidden">
-          <SearchBox className="relative" />
+          <Actions />
         </div>
       </div>
 
-      {menuOpen ? <MegaMenu onClose={() => setMenuOpen(false)} /> : null}
-      {mobileOpen ? <MobileMenu /> : null}
+      {menuOpen ? <MegaMenu onClose={() => setMenuFor(null)} /> : null}
+      {mobileOpen ? <MobileMenu pathname={pathname} /> : null}
     </header>
+  );
+}
+
+function Actions() {
+  const { locale, dict } = useI18n();
+  const mounted = useMounted();
+  const cartItems = useCart((state) => state.items);
+  const compareCount = useCompare((state) => state.slugs.length);
+  const wishCount = useWishlist((state) => state.slugs.length);
+  const pathname = usePathname();
+
+  const cartCount = mounted ? cartItems.reduce((acc, item) => acc + item.qty, 0) : 0;
+  const cartSum = mounted ? cartTotals(cartItems).subtotal : 0;
+
+  return (
+    <>
+      <div className="hidden items-center sm:flex">
+        <IconLink
+          to={href(locale, "/compare")}
+          label={dict.nav.compare}
+          count={mounted ? compareCount : 0}
+          current={pathname.endsWith("/compare")}
+        >
+          <IconCompare className="h-[22px] w-[22px]" />
+        </IconLink>
+        <IconLink
+          to={href(locale, "/wishlist")}
+          label={dict.nav.wishlist}
+          count={mounted ? wishCount : 0}
+          current={pathname.endsWith("/wishlist")}
+        >
+          <IconHeart className="h-[22px] w-[22px]" />
+        </IconLink>
+        <IconLink to={href(locale, "/account")} label={dict.nav.account} current={pathname.endsWith("/account")}>
+          <IconUser className="h-[22px] w-[22px]" />
+        </IconLink>
+        <ThemeToggle className="!h-[52px] !w-[52px] !text-bone hover:!text-signal-text" />
+      </div>
+
+      <Link
+        href={href(locale, "/cart")}
+        aria-label={`${dict.nav.cart}${cartCount ? `, ${cartCount}` : ""}`}
+        className="relative ml-1 inline-flex h-11 items-center gap-2.5 rounded-full border border-[var(--hair-strong)] px-3 text-[15px] font-medium text-bone transition-colors hover:border-signal sm:h-[52px] sm:px-5 lg:ml-2"
+      >
+        <IconCart className="h-5 w-5" />
+        <span className="hidden sm:inline">
+          {cartSum > 0 ? <span className="t-num">{price(cartSum)} ₴</span> : dict.nav.cart}
+        </span>
+        {cartCount > 0 ? (
+          <span className="t-num absolute -right-1 -top-1 grid h-[20px] min-w-[20px] place-items-center rounded-full bg-signal px-1.5 text-[11px] font-semibold text-black sm:hidden">
+            {cartCount}
+          </span>
+        ) : null}
+      </Link>
+
+      <LangSwitch locale={locale} pathname={pathname} />
+    </>
+  );
+}
+
+function IconLink({
+  to,
+  label,
+  count = 0,
+  current,
+  children,
+}: {
+  to: string;
+  label: string;
+  count?: number;
+  current?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={to}
+      aria-label={count > 0 ? `${label}, ${count}` : label}
+      aria-current={current ? "page" : undefined}
+      className={`relative grid h-[52px] w-[52px] place-items-center rounded-full transition-colors ${
+        current ? "text-signal-text" : "text-bone hover:text-signal-text"
+      }`}
+    >
+      {children}
+      {count > 0 ? (
+        <span className="t-num absolute right-1 top-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-signal px-1 text-[11px] font-semibold text-black">
+          {count}
+        </span>
+      ) : null}
+    </Link>
   );
 }
 
@@ -100,17 +199,26 @@ function LangSwitch({ locale, pathname }: { locale: Locale; pathname: string }) 
   return (
     <Link
       href={swapLocale(pathname, other)}
-      className="ml-2 rounded-metal px-2.5 py-2 text-[13px] font-medium uppercase text-bone-dim transition-colors hover:text-bone"
+      hrefLang={other === "ua" ? "uk" : "ru"}
+      className="ml-1 hidden h-11 items-center rounded-full px-3 text-[15px] font-medium text-bone-dim transition-colors hover:text-bone lg:inline-flex"
     >
-      {other}
+      {other === "ua" ? "UA" : "RU"}
     </Link>
   );
 }
 
-function SearchBox({ className }: { className: string }) {
+export function SearchBox({
+  className,
+  defaultValue = "",
+  autoFocus,
+}: {
+  className: string;
+  defaultValue?: string;
+  autoFocus?: boolean;
+}) {
   const { locale, dict } = useI18n();
   const router = useRouter();
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(defaultValue);
   const [focused, setFocused] = useState(false);
   const box = useRef<HTMLFormElement>(null);
 
@@ -129,35 +237,39 @@ function SearchBox({ className }: { className: string }) {
       role="search"
     >
       <div
-        className={`flex h-11 items-center gap-3 rounded-metal px-4 transition-colors ${
-          focused ? "bg-ink-700" : "bg-ink-800 hover:bg-ink-750"
+        className={`flex h-[52px] items-center rounded-full border pl-5 pr-1.5 transition-colors ${
+          focused ? "border-signal" : "border-[var(--hair-strong)]"
         }`}
       >
-        <IconSearch className="h-[18px] w-[18px] shrink-0 text-bone-faint" />
         <input
+          type="search"
           value={value}
           onChange={(event) => setValue(event.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => window.setTimeout(() => setFocused(false), 150)}
           placeholder={dict.nav.searchPlaceholder}
           aria-label={dict.nav.search}
-          className="w-full bg-transparent text-[15px] text-bone outline-none placeholder:text-bone-faint"
+          autoFocus={autoFocus}
+          className="h-full min-w-0 flex-1 bg-transparent text-base text-bone outline-none placeholder:text-bone-faint"
         />
+        <button type="submit" aria-label={dict.nav.searchSubmit} className="icon-btn">
+          <IconSearch className="h-5 w-5" />
+        </button>
       </div>
 
       {focused && matches.length > 0 ? (
-        <div className="absolute inset-x-0 top-[calc(100%+8px)] overflow-hidden rounded-metal bg-ink-750 shadow-[0_30px_70px_rgba(0,0,0,.8)]">
+        <div className="absolute inset-x-0 top-[calc(100%+8px)] z-10 overflow-hidden rounded-[24px] border border-[var(--hair-strong)] bg-ink-850 py-2 shadow-[var(--shadow-pop)]">
           {matches.map((product) => (
             <Link
               key={product.slug}
-              href={`${href(locale, "/product/")}${product.slug}`}
-              className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-ink-700"
+              href={productHref(locale, product.slug)}
+              className="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-ink-700"
             >
-              <Image src={imageOf(product)} alt="" width={40} height={40} className="h-10 w-10 object-contain" />
-              <span className="min-w-0 flex-1 truncate text-sm text-bone">
+              <Image src={imageOf(product)} alt="" width={44} height={44} className="h-11 w-11 object-contain" />
+              <span className="min-w-0 flex-1 truncate text-[15px] text-bone">
                 {brandName(product.brand)} {product.model}
               </span>
-              <span className="t-num shrink-0 text-sm text-bone-dim">{price(product.price)} ₴</span>
+              <span className="t-num shrink-0 text-[15px] text-bone-dim">{price(product.price)} ₴</span>
             </Link>
           ))}
         </div>
@@ -177,119 +289,59 @@ function brandName(slug: string) {
   return brands.find((brand) => brand.slug === slug)?.name ?? slug;
 }
 
-function Actions() {
-  const { locale, dict } = useI18n();
-  const [mounted, setMounted] = useState(false);
-  const cartCount = useCart((state) => state.items.reduce((acc, item) => acc + item.qty, 0));
-  const compareCount = useCompare((state) => state.slugs.length);
-  const platformSlug = usePlatform((state) => state.slug);
-
-  useEffect(() => setMounted(true), []);
-  const platform = platforms.find((item) => item.slug === platformSlug);
-
-  return (
-    <>
-      {mounted && platform ? (
-        <Link
-          href={`${href(locale, "/catalog")}?platform=${platform.slug}`}
-          className="mr-1 hidden items-center gap-2 rounded-metal bg-signal/12 px-3.5 py-2.5 text-[13px] text-signal transition-colors hover:bg-signal/20 xl:flex"
-        >
-          <IconBattery className="h-4 w-4" />
-          {platform.name}
-        </Link>
-      ) : null}
-
-      <Action href={href(locale, "/compare")} label={dict.nav.compare} count={mounted ? compareCount : 0}>
-        <IconCompare className="h-[21px] w-[21px]" />
-      </Action>
-      <Action href={href(locale, "/cart")} label={dict.nav.cart} count={mounted ? cartCount : 0}>
-        <IconCart className="h-[21px] w-[21px]" />
-      </Action>
-    </>
-  );
-}
-
-function Action({
-  href: to,
-  label,
-  count,
-  children,
-}: {
-  href: string;
-  label: string;
-  count: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={to}
-      aria-label={label}
-      className="relative grid h-11 w-11 place-items-center rounded-metal text-bone-dim transition-colors hover:bg-ink-800 hover:text-bone"
-    >
-      {children}
-      {count > 0 ? (
-        <span className="t-num absolute right-1 top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-signal px-1 text-[11px] font-bold text-white">
-          {count}
-        </span>
-      ) : null}
-    </Link>
-  );
-}
-
 function MegaMenu({ onClose }: { onClose: () => void }) {
   const { locale, dict } = useI18n();
 
   return (
     <>
-      <div className="fixed inset-0 top-[76px] bg-black/70" onClick={onClose} aria-hidden />
-      <div className="absolute inset-x-0 top-full border-b border-[var(--hair)] bg-ink-850">
-        <div className="shell grid gap-12 py-10 lg:grid-cols-[1.6fr_1fr]">
-          <div className="grid gap-x-10 gap-y-2 sm:grid-cols-2">
+      <div className="fixed inset-0 top-[var(--header-h)] bg-ink-900/70" onClick={onClose} aria-hidden />
+      <div className="absolute inset-x-0 top-full border-b border-[var(--hair)] bg-ink-900">
+        <div className="shell grid gap-16 py-10 lg:grid-cols-[1.7fr_1fr]">
+          <div className="grid gap-x-10 sm:grid-cols-2">
             {categories.map((category) => (
               <Link
                 key={category.slug}
                 href={categoryHref(locale, category.slug)}
-                className="group flex items-center gap-4 rounded-metal px-3 py-3 transition-colors hover:bg-ink-800"
+                className="group flex items-center gap-5 border-t border-[var(--hair)] py-4"
               >
-                <span className="relative h-12 w-12 shrink-0">
+                <span className="relative h-16 w-16 shrink-0">
                   <Image
                     src={categoryIcon(category.slug)}
                     alt=""
                     fill
-                    sizes="48px"
-                    className="object-contain"
+                    sizes="64px"
+                    className="object-contain transition-transform duration-500 group-hover:scale-105"
                   />
                 </span>
-                <span className="text-[16px] text-bone transition-colors group-hover:text-signal">
-                  {category.name[locale]}
+                <span>
+                  <span className="block text-[18px] font-medium text-bone transition-colors group-hover:text-signal-text">
+                    {category.name[locale]}
+                  </span>
+                  <span className="mt-0.5 block text-sm text-bone-dim">{category.blurb[locale]}</span>
                 </span>
               </Link>
             ))}
           </div>
 
           <div>
-            <p className="t-tag text-bone-faint">{dict.catalog.platform}</p>
+            <p className="t-eyebrow text-bone-dim">{dict.catalog.platform}</p>
             <div className="mt-4 flex flex-wrap gap-2">
               {platforms.map((platform) => (
                 <Link
                   key={platform.slug}
                   href={`${href(locale, "/catalog")}?platform=${platform.slug}`}
-                  className="rounded-metal bg-ink-800 px-3.5 py-2.5 text-[14px] text-bone-dim transition-colors hover:bg-ink-700 hover:text-bone"
+                  className="chip"
                 >
                   {platform.name}
-                  <span className="ml-2 text-bone-faint">{countForPlatform(platform.slug)}</span>
+                  <span className="text-bone-dim">{countForPlatform(platform.slug)}</span>
                 </Link>
               ))}
             </div>
 
-            <p className="t-tag mt-8 text-bone-faint">{dict.nav.brands}</p>
+            <p className="t-eyebrow mt-9 text-bone-dim">{dict.nav.brands}</p>
             <div className="mt-4 flex flex-wrap gap-2">
               {brands.map((brand) => (
-                <Link
-                  key={brand.slug}
-                  href={`${href(locale, "/catalog")}?brand=${brand.slug}`}
-                  className="rounded-metal bg-ink-800 px-3.5 py-2.5 text-[14px] text-bone-dim transition-colors hover:bg-ink-700 hover:text-bone"
-                >
+                <Link key={brand.slug} href={`${href(locale, "/catalog")}?brand=${brand.slug}`} className="chip">
                   {brand.name}
                 </Link>
               ))}
@@ -301,26 +353,56 @@ function MegaMenu({ onClose }: { onClose: () => void }) {
   );
 }
 
-function MobileMenu() {
-  const { locale } = useI18n();
+function MobileMenu({ pathname }: { pathname: string }) {
+  const { locale, dict } = useI18n();
+  const other: Locale = locale === "ua" ? "ru" : "ua";
+
   return (
-    <div className="border-b border-[var(--hair)] bg-ink-850 lg:hidden">
-      <div className="shell grid gap-1 py-4">
+    <div className="fixed inset-x-0 bottom-0 top-[var(--header-h)] overflow-y-auto bg-ink-900 lg:hidden">
+      <div className="shell pb-10 pt-2">
         {categories.map((category) => (
           <Link
             key={category.slug}
             href={categoryHref(locale, category.slug)}
-            className="flex items-center gap-4 rounded-metal px-3 py-3 transition-colors hover:bg-ink-800"
+            className="flex items-center gap-4 border-b border-[var(--hair)] py-3"
           >
-            <span className="relative h-10 w-10 shrink-0">
-              <Image src={categoryIcon(category.slug)} alt="" fill sizes="40px" className="object-contain" />
+            <span className="relative h-14 w-14 shrink-0">
+              <Image src={categoryIcon(category.slug)} alt="" fill sizes="56px" className="object-contain" />
             </span>
-            <span className="text-[16px] text-bone">{category.name[locale]}</span>
+            <span className="flex-1 text-[18px] font-medium text-bone">{category.name[locale]}</span>
+            <span className="text-[15px] text-bone-dim">{countIn(category.slug)}</span>
           </Link>
         ))}
+
+        <div className="mt-6 grid gap-1">
+          <MenuLink to={href(locale, "/compare")} icon={<IconCompare className="h-5 w-5" />}>
+            {dict.nav.compare}
+          </MenuLink>
+          <MenuLink to={href(locale, "/wishlist")} icon={<IconHeart className="h-5 w-5" />}>
+            {dict.nav.wishlist}
+          </MenuLink>
+          <MenuLink to={href(locale, "/account")} icon={<IconUser className="h-5 w-5" />}>
+            {dict.nav.account}
+          </MenuLink>
+          <ThemeRow />
+        </div>
+
+        <div className="mt-6 flex items-center gap-3">
+          <span className="text-[15px] text-bone-dim">{dict.nav.language}</span>
+          <Link href={swapLocale(pathname, other)} className="chip">
+            {other === "ua" ? "Українська" : "Русский"}
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
 
-
+function MenuLink({ to, icon, children }: { to: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <Link href={to} className="flex h-12 items-center gap-4 text-[17px] text-bone">
+      <span className="text-bone-dim">{icon}</span>
+      {children}
+    </Link>
+  );
+}

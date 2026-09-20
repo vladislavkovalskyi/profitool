@@ -1,7 +1,8 @@
 import type { Locale } from "@/i18n";
 import { categoryBySlug, platformBySlug } from "@/data/taxonomy";
 import { productBySlug, products } from "@/data/products";
-import type { Product } from "@/data/types";
+import { localize, type Product } from "@/data/types";
+import { plural } from "@/i18n/plural";
 
 /** Неразрывный пробел как разделитель разрядов: 12 490, а не 12490. */
 export function price(value: number): string {
@@ -11,6 +12,18 @@ export function price(value: number): string {
 export function discountPercent(product: Product): number | null {
   if (!product.oldPrice || product.oldPrice <= product.price) return null;
   return Math.round((1 - product.price / product.oldPrice) * 100);
+}
+
+const PIECES: Record<Locale, [string, string, string]> = {
+  ua: ["предмет", "предмети", "предметів"],
+  ru: ["предмет", "предмета", "предметов"],
+};
+
+/** Ключевой параметр с единицей. Почти везде она уже в значении, у наборов дописываем. */
+export function keyValue(product: Product, locale: Locale): string {
+  const raw = localize(product.key.value, locale);
+  if (product.key.spec === "pieces") return `${raw} ${plural(Number(raw), PIECES[locale])}`;
+  return raw;
 }
 
 /** Товар показываем настоящим снимком: покупатель должен узнать инструмент. */
@@ -49,8 +62,19 @@ export function cartTotals(items: { slug: string; qty: number }[]) {
     .filter((line): line is { product: Product; qty: number; sum: number } => line !== null);
 
   const subtotal = lines.reduce((acc, line) => acc + line.sum, 0);
+  // «Товары» считаем по старым ценам, разницу показываем строкой «Скидка».
+  const gross = lines.reduce((acc, line) => acc + (line.product.oldPrice ?? line.product.price) * line.qty, 0);
   const delivery = subtotal === 0 || subtotal >= FREE_DELIVERY_FROM ? 0 : DELIVERY_COST;
-  return { lines, subtotal, delivery, total: subtotal + delivery, count: lines.length };
+  return {
+    lines,
+    gross,
+    discount: gross - subtotal,
+    subtotal,
+    delivery,
+    total: subtotal + delivery,
+    count: lines.length,
+    pieces: lines.reduce((acc, line) => acc + line.qty, 0),
+  };
 }
 
 export type SortKey = "popular" | "cheap" | "expensive" | "new";
@@ -62,13 +86,14 @@ export type CatalogQuery = {
   min?: number;
   max?: number;
   inStock: boolean;
+  onSale: boolean;
   power?: "corded" | "cordless";
   sort: SortKey;
   search?: string;
 };
 
 export function emptyQuery(): CatalogQuery {
-  return { brands: [], platforms: [], inStock: false, sort: "popular" };
+  return { brands: [], platforms: [], inStock: false, onSale: false, sort: "popular" };
 }
 
 /** Читает фильтры из URL. Состояние живёт в адресе, а не в компоненте. */
@@ -88,6 +113,7 @@ export function parseQuery(params: URLSearchParams, category?: string): CatalogQ
     min: num("min"),
     max: num("max"),
     inStock: params.get("stock") === "1",
+    onSale: params.get("sale") === "1",
     power: power === "corded" || power === "cordless" ? power : undefined,
     sort: sort === "cheap" || sort === "expensive" || sort === "new" ? sort : "popular",
     search: params.get("q") ?? undefined,
@@ -101,6 +127,7 @@ export function queryToParams(query: CatalogQuery): URLSearchParams {
   if (query.min) params.set("min", String(query.min));
   if (query.max) params.set("max", String(query.max));
   if (query.inStock) params.set("stock", "1");
+  if (query.onSale) params.set("sale", "1");
   if (query.power) params.set("power", query.power);
   if (query.sort !== "popular") params.set("sort", query.sort);
   if (query.search) params.set("q", query.search);
@@ -118,6 +145,7 @@ export function applyQuery(query: CatalogQuery): Product[] {
     if (query.min && product.price < query.min) return false;
     if (query.max && product.price > query.max) return false;
     if (query.inStock && product.stock === 0) return false;
+    if (query.onSale && !product.oldPrice) return false;
     if (query.power && product.power !== query.power) return false;
     if (needle) {
       const haystack = `${product.brand} ${product.model} ${product.sku} ${product.slug}`.toLowerCase();

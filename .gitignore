@@ -43,3 +43,7 @@ next-env.d.ts
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# screenshot tooling deps
+/tools/shots/node_modules
+/tools/shots/package-lock.json

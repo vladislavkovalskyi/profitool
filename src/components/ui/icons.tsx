@@ -1,15 +1,15 @@
 type IconProps = { className?: string; strokeWidth?: number };
 
-/** Набор рисован под «Цех»: тонкая линия, прямые углы, никаких скруглённых пузырей. */
-function base(className = "h-5 w-5", strokeWidth = 1.4) {
+/** Тонкая линия 1.6, круглые концы: в тон скруглённым кнопкам и чипам. */
+function base(className = "h-5 w-5", strokeWidth = 1.6) {
   return {
     className,
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
     strokeWidth,
-    strokeLinecap: "square" as const,
-    strokeLinejoin: "miter" as const,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
     "aria-hidden": true,
   };
 }
@@ -154,6 +154,48 @@ export function IconTrash({ className, strokeWidth }: IconProps) {
   return (
     <svg {...base(className, strokeWidth)}>
       <path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13" />
+    </svg>
+  );
+}
+
+export function IconHeart({ className, strokeWidth, filled }: IconProps & { filled?: boolean }) {
+  return (
+    <svg {...base(className, strokeWidth)} fill={filled ? "currentColor" : "none"}>
+      <path d="M12 20s-7-4.6-7-9.3A3.7 3.7 0 0 1 12 8a3.7 3.7 0 0 1 7 2.7C19 15.4 12 20 12 20z" />
+    </svg>
+  );
+}
+
+export function IconUser({ className, strokeWidth }: IconProps) {
+  return (
+    <svg {...base(className, strokeWidth)}>
+      <circle cx="12" cy="8.5" r="3.5" />
+      <path d="M5 20c0-3.4 3.1-5.5 7-5.5s7 2.1 7 5.5" />
+    </svg>
+  );
+}
+
+export function IconAlert({ className, strokeWidth }: IconProps) {
+  return (
+    <svg {...base(className, strokeWidth)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5v5.5M12 16.4v.1" />
+    </svg>
+  );
+}
+export function IconSun({ className, strokeWidth }: IconProps) {
+  return (
+    <svg {...base(className, strokeWidth)}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6" />
+    </svg>
+  );
+}
+
+export function IconMoon({ className, strokeWidth }: IconProps) {
+  return (
+    <svg {...base(className, strokeWidth)}>
+      <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />
     </svg>
   );
 }

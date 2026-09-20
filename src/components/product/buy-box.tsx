@@ -1,180 +1,169 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useMounted } from "@/lib/use-mounted";
+import { useState } from "react";
 import { useI18n } from "@/i18n/context";
 import type { Product } from "@/data/types";
-import { platformBySlug } from "@/data/taxonomy";
+import { brandBySlug, platformBySlug } from "@/data/taxonomy";
 import { discountPercent, href, price } from "@/lib/shop";
-import { COMPARE_LIMIT, useCart, useCompare, usePlatform } from "@/store/shop";
-import { IconArrow, IconBattery, IconCart, IconCheck, IconCompare, IconMinus, IconPlus } from "@/components/ui/icons";
+import { COMPARE_LIMIT, useCart, useCompare, usePlatform, useWishlist } from "@/store/shop";
+import { IconCheck, IconCompare, IconHeart, IconMinus, IconPlus } from "@/components/ui/icons";
 
 export function BuyBox({ product }: { product: Product }) {
   const { locale, dict } = useI18n();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const [qty, setQty] = useState(1);
 
   const add = useCart((state) => state.add);
   const inCart = useCart((state) => state.items.find((item) => item.slug === product.slug));
   const toggleCompare = useCompare((state) => state.toggle);
   const compareSlugs = useCompare((state) => state.slugs);
+  const toggleWish = useWishlist((state) => state.toggle);
+  const wishSlugs = useWishlist((state) => state.slugs);
   const myPlatform = usePlatform((state) => state.slug);
-
-  useEffect(() => setMounted(true), []);
 
   const out = product.stock === 0;
   const discount = discountPercent(product);
   const platform = product.platform ? platformBySlug.get(product.platform) : null;
   const inCompare = mounted && compareSlugs.includes(product.slug);
   const compareFull = mounted && compareSlugs.length >= COMPARE_LIMIT && !inCompare;
-  const fits = mounted && myPlatform && product.platform === myPlatform;
+  const wished = mounted && wishSlugs.includes(product.slug);
+  const fits = mounted && !!myPlatform && product.platform === myPlatform;
+  const brand = brandBySlug.get(product.brand)?.name ?? product.brand;
 
   return (
-    <div className="overflow-hidden rounded-[24px] bg-ink-800">
-      <div className="p-6">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            {product.oldPrice ? (
-              <p className="t-num text-sm text-bone-faint line-through">{price(product.oldPrice)} ₴</p>
-            ) : null}
-            <p className="t-num mt-1 text-[42px] font-bold leading-none text-bone">
-              {price(product.price)}
-              <span className="ml-2 font-ui text-2xl font-normal text-bone-dim">₴</span>
-            </p>
-          </div>
-          {discount ? (
-            <span className="rounded-full bg-signal px-3 py-1.5 text-[13px] font-semibold text-white">−{discount}%</span>
-          ) : null}
-        </div>
+    <div>
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+        <span className="t-price text-4xl text-bone lg:text-[44px]">{price(product.price)} ₴</span>
+        {product.oldPrice ? (
+          <span className="text-lg text-bone-dim line-through">{price(product.oldPrice)}</span>
+        ) : null}
+        {discount ? (
+          <span className="inline-flex h-7 items-center rounded-full bg-signal px-3 text-sm font-semibold text-black">
+            −{discount}%
+          </span>
+        ) : null}
+      </div>
 
-        <Availability product={product} dict={dict} />
+      <Availability product={product} />
 
-        <div className="mt-6 flex items-stretch gap-2">
-          <div className="flex shrink-0 items-center rounded-full bg-ink-700">
-            <button
-              type="button"
-              onClick={() => setQty((value) => Math.max(1, value - 1))}
-              disabled={out || qty <= 1}
-              aria-label="−"
-              className="grid h-[54px] w-11 place-items-center text-bone-dim transition-colors hover:text-bone disabled:opacity-35"
-            >
-              <IconMinus className="h-4 w-4" />
-            </button>
-            <span className="t-num w-9 text-center text-[17px] text-bone">{qty}</span>
-            <button
-              type="button"
-              onClick={() => setQty((value) => Math.min(product.stock || 1, value + 1))}
-              disabled={out || qty >= product.stock}
-              aria-label="+"
-              className="grid h-[54px] w-11 place-items-center text-bone-dim transition-colors hover:text-bone disabled:opacity-35"
-            >
-              <IconPlus className="h-4 w-4" />
-            </button>
-          </div>
-
+      <div className="mt-6 flex items-stretch gap-3">
+        <div className="flex shrink-0 items-center rounded-full border border-[var(--hair-strong)]">
           <button
             type="button"
-            onClick={() => add(product.slug, qty)}
-            disabled={out}
-            className={`flex h-[54px] flex-1 items-center justify-center gap-2.5 rounded-full text-[16px] font-semibold transition-colors ${
-              out
-                ? "cursor-not-allowed bg-ink-700 text-bone-faint"
-                : mounted && inCart
-                  ? "bg-stock text-ink-900"
-                  : "bg-signal text-white hover:bg-signal-hot"
-            }`}
+            onClick={() => setQty((value) => Math.max(1, value - 1))}
+            disabled={out || qty <= 1}
+            aria-label={dict.cart.dec}
+            className="icon-btn !h-[50px] !w-12 disabled:opacity-35"
           >
-            {mounted && inCart ? (
-              <>
-                <IconCheck className="h-5 w-5" />
-                {dict.product.inCart} · {inCart.qty}
-              </>
-            ) : (
-              <>
-                <IconCart className="h-5 w-5" />
-                {dict.product.addToCart}
-              </>
-            )}
+            <IconMinus className="h-4 w-4" />
+          </button>
+          <span className="t-price w-7 text-center text-[17px] text-bone" aria-live="polite">
+            {qty}
+          </span>
+          <button
+            type="button"
+            onClick={() => setQty((value) => Math.min(product.stock || 1, value + 1))}
+            disabled={out || qty >= product.stock}
+            aria-label={dict.cart.inc}
+            className="icon-btn !h-[50px] !w-12 disabled:opacity-35"
+          >
+            <IconPlus className="h-4 w-4" />
           </button>
         </div>
 
-        {mounted && inCart ? (
-          <Link
-            href={href(locale, "/cart")}
-            className="ghost-btn mt-2.5 flex h-[50px] w-full py-0 text-[15px]"
-          >
-            {dict.cart.checkout}
-            <IconArrow className="h-4 w-4" />
-          </Link>
-        ) : null}
+        <button
+          type="button"
+          onClick={() => add(product.slug, qty)}
+          disabled={out}
+          className="signal-btn min-w-0 flex-1"
+        >
+          {mounted && inCart ? (
+            <>
+              <IconCheck className="h-5 w-5" />
+              {dict.product.inCart} · {inCart.qty}
+            </>
+          ) : out ? (
+            dict.stock.out
+          ) : (
+            dict.product.addToCart
+          )}
+        </button>
+      </div>
 
+      {mounted && inCart ? (
+        <Link href={href(locale, "/cart")} className="ghost-btn mt-3 w-full">
+          {dict.product.toCart}
+        </Link>
+      ) : null}
+
+      <div className="mt-2 flex items-center justify-center gap-6">
+        <button
+          type="button"
+          onClick={() => toggleWish(product.slug)}
+          aria-pressed={wished}
+          className={`inline-flex h-11 items-center gap-2 text-[15px] transition-colors ${
+            wished ? "text-signal-text" : "text-bone-dim hover:text-bone"
+          }`}
+        >
+          <IconHeart className="h-5 w-5" filled={wished} />
+          {wished ? dict.product.inWishlist : dict.product.addToWishlist}
+        </button>
         <button
           type="button"
           onClick={() => toggleCompare(product.slug)}
           disabled={compareFull}
-          className={`mt-2.5 flex h-11 w-full items-center justify-center gap-2.5 rounded-full text-sm transition-colors ${
-            inCompare
-              ? "bg-signal/12 text-signal"
-              : "bg-ink-700 text-bone-dim hover:text-bone disabled:opacity-40"
+          aria-pressed={inCompare}
+          className={`inline-flex h-11 items-center gap-2 text-[15px] transition-colors disabled:opacity-40 ${
+            inCompare ? "text-signal-text" : "text-bone-dim hover:text-bone"
           }`}
         >
-          <IconCompare className="h-4 w-4" />
+          <IconCompare className="h-5 w-5" />
           {inCompare ? dict.product.inCompare : dict.product.compare}
         </button>
       </div>
 
       {platform ? (
-        <div
-          className={`px-6 py-5 ${fits ? "bg-stock/10" : "bg-ink-750"}`}
-        >
-          <p className="t-tag flex items-center gap-2 text-bone-faint">
-            <IconBattery className={`h-4 w-4 ${fits ? "text-stock" : "text-signal"}`} />
-            {dict.product.compatible}
+        <div className="mt-8 border-t border-[var(--hair)] pt-6">
+          <p className="text-base font-medium text-bone">{dict.product.compatible}</p>
+          <p className="t-h3 mt-2 text-bone">
+            {brand} {platform.name}
           </p>
-          <div className="mt-3 flex items-center justify-between gap-4">
-            <span className="text-[19px] font-semibold text-bone">{platform.name}</span>
-            {fits ? (
-              <span className="t-tag flex items-center gap-1.5 text-stock">
-                <IconCheck className="h-3.5 w-3.5" />
-                {locale === "ua" ? "Твоя платформа" : "Твоя платформа"}
-              </span>
-            ) : (
-              <Link
-                href={`${href(locale, "/catalog")}?platform=${platform.slug}`}
-                className="t-tag text-bone-dim transition-colors hover:text-signal"
-              >
-                {dict.product.sameSeries}
-              </Link>
-            )}
-          </div>
-          <p className="mt-2 text-xs text-bone-dim">{platform.note[locale]}</p>
+          <p className="mt-2 text-[15px] text-bone-dim">{platform.note[locale]}</p>
+          {fits ? (
+            <p className="mt-4 inline-flex items-center gap-2 text-[15px] text-stock">
+              <IconCheck className="h-4 w-4" />
+              {dict.home.platformPick}
+            </p>
+          ) : (
+            <Link
+              href={`${href(locale, "/catalog")}?platform=${platform.slug}`}
+              className="chip mt-4 !h-11 !px-5"
+            >
+              {dict.product.sameSeries}
+            </Link>
+          )}
         </div>
       ) : null}
     </div>
   );
 }
 
-function Availability({ product, dict }: { product: Product; dict: ReturnType<typeof useI18n>["dict"] }) {
-  if (product.stock === 0) {
-    return (
-      <p className="mt-5 flex items-center gap-2 text-[14px] text-bone-faint">
-        <span className="h-2 w-2 rounded-full bg-bone-faint" />
-        {dict.stock.out} · {dict.stock.outNote}
-      </p>
-    );
-  }
-  if (product.stock <= 5) {
-    return (
-      <p className="mt-5 flex items-center gap-2 text-[14px] text-warn">
-        <span className="h-2 w-2 rounded-full bg-warn" />
-        {dict.stock.low(product.stock)}
-      </p>
-    );
-  }
+function Availability({ product }: { product: Product }) {
+  const { dict } = useI18n();
+
+  const state =
+    product.stock === 0
+      ? { dot: "bg-bone-faint", text: `${dict.stock.out}. ${dict.stock.outNote}`, color: "text-bone-dim" }
+      : product.stock <= 5
+        ? { dot: "bg-signal", text: dict.stock.low(product.stock), color: "text-signal-text" }
+        : { dot: "bg-stock", text: dict.stock.in, color: "text-bone" };
+
   return (
-    <p className="mt-5 flex items-center gap-2 text-[14px] text-stock">
-      <span className="h-2 w-2 rounded-full bg-stock" />
-      {dict.stock.in}
+    <p className={`mt-4 flex items-center gap-2.5 text-base ${state.color}`}>
+      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${state.dot}`} aria-hidden />
+      {state.text}
     </p>
   );
 }

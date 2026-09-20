@@ -8,9 +8,9 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
   const dict = getDict(locale);
 
   return (
-    <div className="shell py-10">
-      <h1 className="t-h1 border-b border-[var(--hair)] pb-5 text-bone">{dict.checkout.title}</h1>
-      <div className="mt-8">
+    <div className="shell pb-8 pt-10">
+      <h1 className="t-h1 text-bone">{dict.checkout.title}</h1>
+      <div className="mt-9">
         <CheckoutForm />
       </div>
     </div>

@@ -69,6 +69,26 @@ export const useCompare = create<CompareState>()(
   ),
 );
 
+type WishlistState = {
+  slugs: string[];
+  toggle: (slug: string) => void;
+};
+
+export const useWishlist = create<WishlistState>()(
+  persist(
+    (set) => ({
+      slugs: [],
+      toggle: (slug) =>
+        set((state) => ({
+          slugs: state.slugs.includes(slug)
+            ? state.slugs.filter((s) => s !== slug)
+            : [...state.slugs, slug],
+        })),
+    }),
+    { name: "profitool-wishlist" },
+  ),
+);
+
 type PlatformState = {
   /** Аккумуляторная платформа покупателя: держим между визитами. */
   slug: string | null;
