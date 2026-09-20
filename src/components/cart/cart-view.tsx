@@ -1,162 +1,167 @@
 "use client";
 
 import Image from "next/image";
+import { useMounted } from "@/lib/use-mounted";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n/context";
 import { brandBySlug } from "@/data/taxonomy";
-import { cartTotals, FREE_DELIVERY_FROM, href, imageOf, price, productHref } from "@/lib/shop";
+import { cartTotals, FREE_DELIVERY_FROM, href, imageOf, keyValue, price, productHref } from "@/lib/shop";
 import { useCart } from "@/store/shop";
-import { IconArrow, IconCart, IconMinus, IconPlus, IconTrash } from "@/components/ui/icons";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconCart, IconMinus, IconPlus, IconTrash } from "@/components/ui/icons";
 
 export function CartView() {
   const { locale, dict } = useI18n();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const items = useCart((state) => state.items);
   const setQty = useCart((state) => state.setQty);
   const remove = useCart((state) => state.remove);
 
-  useEffect(() => setMounted(true), []);
+  if (!mounted) return <div className="min-h-[40vh]" role="status" aria-busy="true" />;
 
-  if (!mounted) return <div className="h-[40vh]" />;
-
-  const { lines, subtotal, delivery, total } = cartTotals(items);
+  const { lines, gross, discount, subtotal, delivery, total, pieces } = cartTotals(items);
 
   if (lines.length === 0) {
     return (
-      <div className="rounded-[24px] bg-ink-800 px-6 py-24 text-center">
-        <IconCart className="mx-auto h-12 w-12 text-ink-500" strokeWidth={1} />
-        <p className="t-h2 mt-6 text-bone">{dict.cart.empty}</p>
-        <p className="mt-4 text-bone-dim">{dict.cart.emptyText}</p>
-        <Link href={href(locale, "/catalog")} className="signal-btn mt-8 inline-flex">
-          {dict.cart.emptyCta}
-          <IconArrow className="h-4 w-4" />
-        </Link>
-      </div>
+      <EmptyState
+        icon={<IconCart className="h-12 w-12" strokeWidth={1.2} />}
+        title={dict.cart.empty}
+        text={dict.cart.emptyText}
+        cta={{ href: href(locale, "/catalog"), label: dict.cart.emptyCta }}
+      />
     );
   }
 
   const left = FREE_DELIVERY_FROM - subtotal;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-      <div className="space-y-3">
+    <div className="grid gap-x-[72px] gap-y-10 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
+      <section aria-label={dict.cart.label} className="border-b border-[var(--hair)]">
         {lines.map(({ product, qty, sum }) => {
-          const brand = brandBySlug.get(product.brand);
+          const brand = brandBySlug.get(product.brand)?.name ?? product.brand;
+          const name = `${brand} ${product.model}`;
           return (
-            <article key={product.slug} className="flex gap-4 rounded-[20px] bg-ink-800 p-4 sm:gap-6 sm:p-5">
-              <Link
-                href={productHref(locale, product.slug)}
-                className="relative h-24 w-24 shrink-0 rounded-[14px] bg-ink-700 sm:h-28 sm:w-28"
-              >
-                <Image src={imageOf(product)} alt={product.model} fill className="object-contain p-2" />
+            <article
+              key={product.slug}
+              className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-x-5 gap-y-4 border-t border-[var(--hair)] py-6 sm:grid-cols-[120px_minmax(0,1fr)_auto_auto_auto] sm:gap-x-7"
+            >
+              <Link href={productHref(locale, product.slug)} className="relative block h-[88px] w-[88px] sm:h-[120px] sm:w-[120px]">
+                <Image src={imageOf(product)} alt={name} fill sizes="120px" className="object-contain" />
               </Link>
 
-              <div className="flex min-w-0 flex-1 flex-col">
-                <span className="text-[13px] text-bone-faint">{brand?.name}</span>
+              <div className="min-w-0">
+                <span className="text-sm text-bone-dim">{brand}</span>
                 <Link
                   href={productHref(locale, product.slug)}
-                  className="mt-1.5 text-[17px] leading-tight text-bone transition-colors hover:text-signal"
+                  className="mt-1 block text-xl font-medium leading-snug text-bone transition-colors hover:text-signal-text"
                 >
                   {product.model}
                 </Link>
-                
+                <span className="mt-1.5 block text-sm text-bone-dim">{keyValue(product, locale)}</span>
+              </div>
 
-                <div className="mt-auto flex flex-wrap items-center justify-between gap-4 pt-4">
-                  <div className="flex items-center rounded-full bg-ink-700">
-                    <button
-                      type="button"
-                      onClick={() => setQty(product.slug, qty - 1)}
-                      aria-label="−"
-                      className="grid h-10 w-9 place-items-center text-bone-dim transition-colors hover:text-bone"
-                    >
-                      <IconMinus className="h-3.5 w-3.5" />
-                    </button>
-                    <span className="t-num w-8 text-center text-sm text-bone">{qty}</span>
-                    <button
-                      type="button"
-                      onClick={() => setQty(product.slug, Math.min(qty + 1, product.stock))}
-                      disabled={qty >= product.stock}
-                      aria-label="+"
-                      className="grid h-10 w-9 place-items-center text-bone-dim transition-colors hover:text-bone disabled:opacity-35"
-                    >
-                      <IconPlus className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-5">
-                    <span className="t-num text-xl font-bold text-bone">
-                      {price(sum)}
-                      <span className="ml-1 font-ui text-sm font-normal text-bone-dim">₴</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => remove(product.slug)}
-                      aria-label={dict.cart.remove}
-                      className="text-bone-faint transition-colors hover:text-signal"
-                    >
-                      <IconTrash className="h-[18px] w-[18px]" />
-                    </button>
-                  </div>
+              <div className="col-span-2 flex items-center justify-between gap-4 sm:col-span-3 sm:contents">
+                <div className="flex items-center rounded-full border border-[var(--hair-strong)]">
+                  <button
+                    type="button"
+                    onClick={() => setQty(product.slug, qty - 1)}
+                    aria-label={dict.cart.dec}
+                    className="icon-btn !h-[50px] !w-12"
+                  >
+                    <IconMinus className="h-4 w-4" />
+                  </button>
+                  <span className="t-price w-7 text-center text-[17px]" aria-live="polite">
+                    {qty}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setQty(product.slug, Math.min(qty + 1, product.stock))}
+                    disabled={qty >= product.stock}
+                    aria-label={dict.cart.inc}
+                    className="icon-btn !h-[50px] !w-12 disabled:opacity-35"
+                  >
+                    <IconPlus className="h-4 w-4" />
+                  </button>
                 </div>
+
+                <span className="t-price text-xl text-bone sm:w-[150px] sm:text-right sm:text-2xl">{price(sum)} ₴</span>
+
+                <button
+                  type="button"
+                  onClick={() => remove(product.slug)}
+                  aria-label={dict.cart.removeItem(name)}
+                  className="icon-btn hover:!text-signal-text"
+                >
+                  <IconTrash className="h-5 w-5" />
+                </button>
               </div>
             </article>
           );
         })}
-      </div>
+      </section>
 
-      <aside className="lg:sticky lg:top-[92px] lg:self-start">
-        <div className="rounded-[24px] bg-ink-800 p-6">
-          <dl className="space-y-3.5">
-            <Row label={dict.cart.subtotal} value={`${price(subtotal)} ₴`} />
-            <Row
-              label={dict.cart.delivery}
-              value={delivery === 0 ? dict.cart.deliveryFree : `${price(delivery)} ₴`}
-              accent={delivery === 0}
-            />
-          </dl>
+      <aside aria-label={dict.cart.summary} className="lg:sticky lg:top-[calc(var(--header-h)+24px)]">
+        <dl>
+          <Row label={dict.cart.items(pieces)} value={`${price(gross)} ₴`} first />
+          {discount > 0 ? <Row label={dict.common.discount} value={`−${price(discount)} ₴`} accent /> : null}
+          <Row
+            label={dict.cart.delivery}
+            value={delivery === 0 ? dict.cart.deliveryFree : `${price(delivery)} ₴`}
+            plain
+          />
+        </dl>
 
-          {left > 0 ? (
-            <div className="mt-5">
-              <p className="t-tag text-bone-faint">{dict.cart.freeLeft(price(left))}</p>
-              <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-ink-700">
-                <div
-                  className="h-full bg-signal transition-[width] duration-500"
-                  style={{ width: `${Math.min(100, (subtotal / FREE_DELIVERY_FROM) * 100)}%` }}
-                />
-              </div>
+        {left > 0 ? (
+          <div className="mt-4">
+            <p className="text-sm text-bone-dim">{dict.cart.freeLeft(price(left))}</p>
+            <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-ink-600">
+              <div
+                className="h-full rounded-full bg-signal transition-[width] duration-500"
+                style={{ width: `${Math.min(100, (subtotal / FREE_DELIVERY_FROM) * 100)}%` }}
+              />
             </div>
-          ) : null}
-
-          <div className="mt-6 flex items-end justify-between border-t border-[var(--hair)] pt-5">
-            <span className="t-tag text-bone-dim">{dict.cart.total}</span>
-            <span className="t-num text-[32px] font-bold leading-none text-bone">
-              {price(total)}
-              <span className="ml-1.5 font-ui text-lg font-normal text-bone-dim">₴</span>
-            </span>
           </div>
+        ) : null}
 
-          <Link href={href(locale, "/checkout")} className="signal-btn mt-6 w-full">
-            {dict.cart.checkout}
-            <IconArrow className="h-4 w-4" />
-          </Link>
-          <Link
-            href={href(locale, "/catalog")}
-            className="mt-3 block text-center text-sm text-bone-dim transition-colors hover:text-signal"
-          >
-            {dict.cart.continue}
-          </Link>
+        <div className="mt-6 flex items-baseline justify-between gap-4">
+          <span className="text-xl font-medium">{dict.cart.total}</span>
+          <span className="t-price text-3xl lg:text-[34px]">{price(total)} ₴</span>
         </div>
+
+        <Link href={href(locale, "/checkout")} className="signal-btn btn-lg mt-6 w-full">
+          {dict.cart.checkout}
+        </Link>
+        <Link href={href(locale, "/catalog")} className="ghost-btn mt-3 w-full">
+          {dict.cart.continue}
+        </Link>
       </aside>
     </div>
   );
 }
 
-function Row({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Row({
+  label,
+  value,
+  accent,
+  plain,
+  first,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  plain?: boolean;
+  first?: boolean;
+}) {
   return (
-    <div className="flex items-baseline justify-between gap-4">
-      <dt className="text-sm text-bone-dim">{label}</dt>
-      <dd className={`t-num text-sm ${accent ? "text-stock" : "text-bone"}`}>{value}</dd>
+    <div
+      className={`flex items-baseline justify-between gap-4 border-b border-[var(--hair)] py-3.5 ${
+        first ? "border-t" : ""
+      }`}
+    >
+      <dt className="text-base text-bone-dim">{label}</dt>
+      <dd className={plain ? "text-base text-bone" : `t-price text-lg ${accent ? "text-signal-text" : "text-bone"}`}>
+        {value}
+      </dd>
     </div>
   );
 }

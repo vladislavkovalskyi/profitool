@@ -1,28 +1,58 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useMounted } from "@/lib/use-mounted";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/i18n/context";
 import { brands, platforms } from "@/data/taxonomy";
-import { countForPlatform, parseQuery, queryToParams, type CatalogQuery } from "@/lib/shop";
+import { products } from "@/data/products";
+import { parseQuery, queryToParams, type CatalogQuery } from "@/lib/shop";
 import { usePlatform } from "@/store/shop";
-import { IconBattery, IconCheck, IconClose, IconFilter } from "@/components/ui/icons";
+import { IconBattery, IconClose, IconFilter } from "@/components/ui/icons";
 
 /** Фильтры пишут в адресную строку: ссылку можно переслать, «назад» работает. */
-export function Filters({ total }: { total: number }) {
-  const { dict } = useI18n();
+function useCatalogQuery() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const [open, setOpen] = useState(false);
-  const savedPlatform = usePlatform((state) => state.slug);
-
   const query = parseQuery(new URLSearchParams(params.toString()));
 
   const push = (next: CatalogQuery) => {
     const search = queryToParams(next).toString();
     router.push(search ? `${pathname}?${search}` : pathname, { scroll: false });
   };
+
+  return { query, push };
+}
+
+const cleared: Partial<CatalogQuery> = {
+  brands: [],
+  platforms: [],
+  inStock: false,
+  onSale: false,
+  power: undefined,
+  min: undefined,
+  max: undefined,
+};
+
+export function Filters({ total, category }: { total: number; category?: string }) {
+  const { dict } = useI18n();
+  const { query, push } = useCatalogQuery();
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const dialog = useRef<HTMLDivElement>(null);
+  const savedPlatform = usePlatform((state) => state.slug);
+
+  const scope = products.filter((product) => !category || product.category === category);
+  const brandRows = brands
+    .map((brand) => ({ ...brand, count: scope.filter((p) => p.brand === brand.slug).length }))
+    .filter((row) => row.count > 0);
+  const platformRows = platforms
+    .map((platform) => ({ ...platform, count: scope.filter((p) => p.platform === platform.slug).length }))
+    .filter((row) => row.count > 0);
+  const powerRows = (["cordless", "corded"] as const)
+    .map((power) => ({ power, count: scope.filter((p) => p.power === power).length }))
+    .filter((row) => row.count > 0);
 
   const toggleIn = (key: "brands" | "platforms", value: string) => {
     const current = query[key];
@@ -36,157 +66,265 @@ export function Filters({ total }: { total: number }) {
     query.brands.length +
     query.platforms.length +
     (query.inStock ? 1 : 0) +
+    (query.onSale ? 1 : 0) +
     (query.power ? 1 : 0) +
     (query.min || query.max ? 1 : 0);
+
+  // Мобильный ящик ведёт себя как модалка: Escape закрывает, Tab не уходит за край, фокус возвращается.
+  useEffect(() => {
+    if (!open) return;
+    const node = dialog.current;
+    const button = trigger.current;
+    document.body.style.overflow = "hidden";
+    node?.focus();
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !node) return;
+      const items = node.querySelectorAll<HTMLElement>("button, input, a[href], select");
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+      button?.focus();
+    };
+  }, [open]);
 
   return (
     <>
       <button
+        ref={trigger}
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-ink-800 text-[15px] font-semibold text-bone lg:hidden"
+        aria-haspopup="dialog"
+        className="ghost-btn w-full lg:hidden"
       >
         <IconFilter className="h-[18px] w-[18px]" />
         {dict.catalog.filters}
         {active > 0 ? (
-          <span className="t-num grid h-5 min-w-5 place-items-center bg-signal px-1 text-[11px] text-black">
+          <span className="t-num grid h-5 min-w-5 place-items-center rounded-full bg-signal px-1.5 text-[12px] text-black">
             {active}
           </span>
         ) : null}
       </button>
 
       <div
-        className={`fixed inset-0 z-[60] bg-ink-900 p-6 lg:static lg:z-auto lg:block lg:overflow-visible lg:bg-transparent lg:p-0 ${
-          open ? "overflow-y-auto" : "hidden"
+        ref={dialog}
+        tabIndex={-1}
+        role={open ? "dialog" : undefined}
+        aria-modal={open ? true : undefined}
+        aria-label={dict.catalog.filters}
+        className={`outline-none ${
+          open
+            ? "fixed inset-0 z-[60] flex flex-col bg-ink-900"
+            : "hidden lg:block"
         }`}
       >
-        <div className="mb-6 flex items-center justify-between lg:hidden">
-          <span className="t-h3 text-bone">{dict.catalog.filters}</span>
-          <button type="button" onClick={() => setOpen(false)} aria-label={dict.nav.close}>
-            <IconClose className="h-6 w-6 text-bone" />
-          </button>
-        </div>
+        <div className={open ? "flex-1 overflow-y-auto px-[var(--gutter)] pb-6" : ""}>
+          <div className="flex items-center justify-between border-b border-[var(--hair)] pb-3.5 pt-1 lg:pt-0">
+            <span className="t-eyebrow text-bone-dim">{dict.catalog.filters}</span>
+            <div className="flex items-center gap-3">
+              {active > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => push({ ...query, ...cleared })}
+                  className="text-sm text-signal-text hover:underline"
+                >
+                  {dict.catalog.reset}
+                </button>
+              ) : null}
+              {open ? (
+                <button type="button" onClick={() => setOpen(false)} aria-label={dict.nav.close} className="icon-btn !text-bone">
+                  <IconClose className="h-6 w-6" />
+                </button>
+              ) : null}
+            </div>
+          </div>
 
-        <div className="space-y-2">
-          {savedPlatform ? (
-            <SavedPlatformHint
+          {savedPlatform && platformRows.some((row) => row.slug === savedPlatform) ? (
+            <SavedPlatform
               slug={savedPlatform}
               applied={query.platforms.includes(savedPlatform)}
-              onApply={() => toggleIn("platforms", savedPlatform)}
+              onToggle={() => toggleIn("platforms", savedPlatform)}
               label={dict.nav.myBattery}
             />
           ) : null}
 
-          <Group title={dict.catalog.platform}>
-            {platforms.map((platform) => (
-              <Check
-                key={platform.slug}
-                checked={query.platforms.includes(platform.slug)}
-                onChange={() => toggleIn("platforms", platform.slug)}
-                label={platform.name}
-                count={countForPlatform(platform.slug)}
-              />
-            ))}
-          </Group>
+          {powerRows.length > 1 ? (
+            <Group title={dict.catalog.power}>
+              {powerRows.map(({ power, count }) => (
+                <Check
+                  key={power}
+                  checked={query.power === power}
+                  onChange={() => push({ ...query, power: query.power === power ? undefined : power })}
+                  label={power === "corded" ? dict.catalog.corded : dict.catalog.cordless}
+                  count={count}
+                />
+              ))}
+            </Group>
+          ) : null}
 
-          <Group title={dict.catalog.brand}>
-            {brands.map((brand) => (
-              <Check
-                key={brand.slug}
-                checked={query.brands.includes(brand.slug)}
-                onChange={() => toggleIn("brands", brand.slug)}
-                label={brand.name}
-              />
-            ))}
-          </Group>
-
-          <Group title={dict.catalog.power}>
-            {(["corded", "cordless"] as const).map((power) => (
-              <Check
-                key={power}
-                checked={query.power === power}
-                onChange={() => push({ ...query, power: query.power === power ? undefined : power })}
-                label={power === "corded" ? dict.catalog.corded : dict.catalog.cordless}
-              />
-            ))}
-          </Group>
+          {brandRows.length > 1 ? (
+            <Group title={dict.catalog.brand}>
+              {brandRows.map((brand) => (
+                <Check
+                  key={brand.slug}
+                  checked={query.brands.includes(brand.slug)}
+                  onChange={() => toggleIn("brands", brand.slug)}
+                  label={brand.name}
+                  count={brand.count}
+                />
+              ))}
+            </Group>
+          ) : null}
 
           <Group title={dict.catalog.price}>
-            <PriceRange query={query} onChange={push} dict={dict} />
+            {/* key: при сбросе фильтров поля заполняются заново из адреса */}
+            <PriceRange key={`${query.min ?? ""}-${query.max ?? ""}`} query={query} onChange={push} />
           </Group>
 
-          <Group title={dict.catalog.availability}>
+          {platformRows.length > 0 ? (
+            <Group title={dict.catalog.platform}>
+              <div className="flex flex-wrap gap-2 pb-3">
+                {platformRows.map((platform) => (
+                  <button
+                    key={platform.slug}
+                    type="button"
+                    aria-pressed={query.platforms.includes(platform.slug)}
+                    onClick={() => toggleIn("platforms", platform.slug)}
+                    className="chip"
+                  >
+                    {platform.name}
+                  </button>
+                ))}
+              </div>
+            </Group>
+          ) : null}
+
+          <Group title={dict.catalog.availability} last>
             <Check
               checked={query.inStock}
               onChange={() => push({ ...query, inStock: !query.inStock })}
               label={dict.catalog.inStockOnly}
             />
+            <Check
+              checked={query.onSale}
+              onChange={() => push({ ...query, onSale: !query.onSale })}
+              label={dict.catalog.onSaleOnly}
+            />
           </Group>
         </div>
 
-        {active > 0 ? (
-          <button
-            type="button"
-            onClick={() => push({ ...query, brands: [], platforms: [], inStock: false, power: undefined, min: undefined, max: undefined })}
-            className="mt-3 w-full rounded-full bg-ink-800 py-3 text-[14px] text-bone-dim transition-colors hover:text-signal"
-          >
-            {dict.catalog.resetAll}
-          </button>
+        {open ? (
+          <div className="border-t border-[var(--hair)] p-[var(--gutter)]">
+            <button type="button" onClick={() => setOpen(false)} className="signal-btn w-full">
+              {dict.catalog.showResults(total)}
+            </button>
+          </div>
         ) : null}
-
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="signal-btn mt-4 w-full lg:hidden"
-        >
-          {dict.catalog.apply} · {total}
-        </button>
       </div>
     </>
   );
 }
 
-function SavedPlatformHint({
+/** Выбранные фильтры чипами: каждый снимается одним нажатием. */
+export function ActiveFilters() {
+  const { dict } = useI18n();
+  const { query, push } = useCatalogQuery();
+
+  const chips: { key: string; label: string; remove: () => void }[] = [];
+  for (const slug of query.brands) {
+    const name = brands.find((brand) => brand.slug === slug)?.name ?? slug;
+    chips.push({ key: `b-${slug}`, label: name, remove: () => push({ ...query, brands: query.brands.filter((v) => v !== slug) }) });
+  }
+  for (const slug of query.platforms) {
+    const name = platforms.find((platform) => platform.slug === slug)?.name ?? slug;
+    chips.push({ key: `p-${slug}`, label: name, remove: () => push({ ...query, platforms: query.platforms.filter((v) => v !== slug) }) });
+  }
+  if (query.power)
+    chips.push({
+      key: "power",
+      label: query.power === "corded" ? dict.catalog.corded : dict.catalog.cordless,
+      remove: () => push({ ...query, power: undefined }),
+    });
+  if (query.min || query.max)
+    chips.push({
+      key: "price",
+      label: `${query.min ?? "0"} – ${query.max ?? "∞"} ₴`,
+      remove: () => push({ ...query, min: undefined, max: undefined }),
+    });
+  if (query.inStock)
+    chips.push({ key: "stock", label: dict.catalog.inStockOnly, remove: () => push({ ...query, inStock: false }) });
+  if (query.onSale)
+    chips.push({ key: "sale", label: dict.catalog.onSaleOnly, remove: () => push({ ...query, onSale: false }) });
+
+  if (chips.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2.5 pb-6">
+      <span className="text-[15px] text-bone-dim">{dict.catalog.selected}:</span>
+      {chips.map((chip) => (
+        <span key={chip.key} className="chip !h-9 !gap-1 !pr-1.5 text-sm">
+          {chip.label}
+          <button
+            type="button"
+            onClick={chip.remove}
+            aria-label={dict.catalog.removeFilter(chip.label)}
+            className="grid h-7 w-7 place-items-center rounded-full text-bone-dim transition-colors hover:text-bone"
+          >
+            <IconClose className="h-3.5 w-3.5" strokeWidth={2} />
+          </button>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function SavedPlatform({
   slug,
   applied,
-  onApply,
+  onToggle,
   label,
 }: {
   slug: string;
   applied: boolean;
-  onApply: () => void;
+  onToggle: () => void;
   label: string;
 }) {
   const platform = platforms.find((item) => item.slug === slug);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
   if (!mounted || !platform) return null;
 
   return (
-    <button
-      type="button"
-      onClick={onApply}
-      className={`flex w-full items-center gap-3 rounded-[18px] px-5 py-4 text-left transition-colors ${
-        applied ? "bg-signal/15" : "bg-ink-800 hover:bg-ink-750"
-      }`}
-    >
-      <IconBattery className={`h-5 w-5 shrink-0 ${applied ? "text-signal" : "text-bone-faint"}`} />
-      <span className="min-w-0 flex-1">
-        <span className="t-tag block text-bone-faint">{label}</span>
-        <span className="mt-1 block text-[16px] font-semibold text-bone">
-          {platform.name}
-        </span>
-      </span>
-      {applied ? <IconCheck className="h-4 w-4 shrink-0 text-signal" /> : null}
-    </button>
+    <div className="border-b border-[var(--hair)] py-5">
+      <button type="button" onClick={onToggle} aria-pressed={applied} className="chip !h-11 w-full !justify-start">
+        <IconBattery className="h-5 w-5 shrink-0" />
+        <span className="text-bone-dim">{label}</span>
+        <span className="font-medium">{platform.name}</span>
+      </button>
+    </div>
   );
 }
 
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
+function Group({ title, children, last }: { title: string; children: React.ReactNode; last?: boolean }) {
   return (
-    <section className="rounded-[18px] bg-ink-800 px-5 py-5">
-      <p className="t-tag text-bone-faint">{title}</p>
-      <div className="mt-3.5 space-y-0.5">{children}</div>
+    <section className={`pb-2 pt-5 ${last ? "" : "border-b border-[var(--hair)]"}`}>
+      <p className="text-base font-medium text-bone">{title}</p>
+      <div className="mt-3">{children}</div>
     </section>
   );
 }
@@ -203,34 +341,21 @@ function Check({
   count?: number;
 }) {
   return (
-    <label className="group flex cursor-pointer items-center gap-3 py-1.5">
-      <input type="checkbox" checked={checked} onChange={onChange} className="peer sr-only" />
-      <span
-        className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[5px] transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-signal ${
-          checked ? "bg-signal text-black" : "bg-ink-700 text-transparent"
-        }`}
-      >
-        <IconCheck className="h-3 w-3" strokeWidth={2.4} />
-      </span>
-      <span
-        className={`flex-1 text-sm transition-colors ${checked ? "text-bone" : "text-bone-dim group-hover:text-bone"}`}
-      >
-        {label}
-      </span>
-      {count !== undefined ? <span className="t-num text-xs text-bone-faint">{count}</span> : null}
+    <label className="flex min-h-11 items-center gap-3 text-base text-bone">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        className="check"
+      />
+      <span className="flex-1">{label}</span>
+      {count !== undefined ? <span className="text-sm text-bone-dim">{count}</span> : null}
     </label>
   );
 }
 
-function PriceRange({
-  query,
-  onChange,
-  dict,
-}: {
-  query: CatalogQuery;
-  onChange: (next: CatalogQuery) => void;
-  dict: ReturnType<typeof useI18n>["dict"];
-}) {
+function PriceRange({ query, onChange }: { query: CatalogQuery; onChange: (next: CatalogQuery) => void }) {
+  const { dict } = useI18n();
   const [min, setMin] = useState(query.min ? String(query.min) : "");
   const [max, setMax] = useState(query.max ? String(query.max) : "");
 
@@ -241,8 +366,10 @@ function PriceRange({
       max: max ? Number(max) : undefined,
     });
 
+  const input = "field !h-12 !px-3.5 text-[15px] t-num";
+
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2.5 pb-3">
       <input
         inputMode="numeric"
         value={min}
@@ -251,9 +378,9 @@ function PriceRange({
         onKeyDown={(event) => event.key === "Enter" && commit()}
         placeholder={dict.catalog.priceFrom}
         aria-label={dict.catalog.priceFrom}
-        className="t-num h-11 w-full rounded-[12px] bg-ink-700 px-3.5 text-sm text-bone outline-none transition-colors focus:bg-ink-600"
+        className={input}
       />
-      <span className="text-bone-faint">—</span>
+      <span className="text-bone-dim">—</span>
       <input
         inputMode="numeric"
         value={max}
@@ -262,7 +389,7 @@ function PriceRange({
         onKeyDown={(event) => event.key === "Enter" && commit()}
         placeholder={dict.catalog.priceTo}
         aria-label={dict.catalog.priceTo}
-        className="t-num h-11 w-full rounded-[12px] bg-ink-700 px-3.5 text-sm text-bone outline-none transition-colors focus:bg-ink-600"
+        className={input}
       />
     </div>
   );
@@ -271,10 +398,7 @@ function PriceRange({
 /** Сортировка отдельно: она живёт над сеткой, а не в колонке фильтров. */
 export function SortSelect() {
   const { dict } = useI18n();
-  const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
-  const query = parseQuery(new URLSearchParams(params.toString()));
+  const { query, push } = useCatalogQuery();
 
   const options = [
     { value: "popular", label: dict.catalog.sortPopular },
@@ -284,19 +408,15 @@ export function SortSelect() {
   ] as const;
 
   return (
-    <label className="flex items-center gap-2.5">
-      <span className="t-tag hidden text-bone-faint sm:block">{dict.catalog.sort}</span>
+    <label className="flex items-center gap-3 text-[15px] text-bone-dim">
+      <span className="hidden sm:block">{dict.catalog.sort}</span>
       <select
         value={query.sort}
-        onChange={(event) => {
-          const next = queryToParams({ ...query, sort: event.target.value as CatalogQuery["sort"] });
-          const search = next.toString();
-          router.push(search ? `${pathname}?${search}` : pathname, { scroll: false });
-        }}
-        className="h-11 rounded-full bg-ink-800 px-4 text-sm text-bone outline-none transition-colors hover:bg-ink-750"
+        onChange={(event) => push({ ...query, sort: event.target.value as CatalogQuery["sort"] })}
+        className="h-12 rounded-full border border-[var(--hair-strong)] bg-ink-900 px-4 text-[15px] text-bone outline-none focus:border-signal"
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value} className="bg-ink-800">
+          <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}

@@ -1,108 +1,132 @@
 "use client";
 
 import Image from "next/image";
+import { useMounted } from "@/lib/use-mounted";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n/context";
 import type { Product } from "@/data/types";
-import { brandBySlug } from "@/data/taxonomy";
-import { discountPercent, imageOf, price, productHref } from "@/lib/shop";
-import { COMPARE_LIMIT, useCart, useCompare } from "@/store/shop";
-import { IconCart, IconCheck, IconCompare } from "@/components/ui/icons";
+import { brandBySlug, platformBySlug } from "@/data/taxonomy";
+import { discountPercent, imageOf, keyValue, price, productHref } from "@/lib/shop";
+import { COMPARE_LIMIT, useCart, useCompare, useWishlist } from "@/store/shop";
+import { IconCheck, IconCompare, IconHeart } from "@/components/ui/icons";
 
-type Props = { product: Product; priority?: boolean };
+/** Высота кадра фиксирована по месту: на телефоне ниже, потому что колонок две. */
+const frame = {
+  home: "h-[200px] md:h-[300px]",
+  catalog: "h-[200px] md:h-[280px]",
+  rail: "h-[180px] md:h-[220px]",
+} as const;
 
-export function ProductCard({ product, priority }: Props) {
+type Props = { product: Product; size?: keyof typeof frame; priority?: boolean };
+
+export function ProductCard({ product, size = "catalog", priority }: Props) {
   const { locale, dict } = useI18n();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const add = useCart((state) => state.add);
   const inCart = useCart((state) => state.items.some((item) => item.slug === product.slug));
   const toggleCompare = useCompare((state) => state.toggle);
   const compareSlugs = useCompare((state) => state.slugs);
+  const toggleWish = useWishlist((state) => state.toggle);
+  const wishSlugs = useWishlist((state) => state.slugs);
 
-  useEffect(() => setMounted(true), []);
-
-  const brand = brandBySlug.get(product.brand);
+  const brand = brandBySlug.get(product.brand)?.name ?? product.brand;
+  const name = `${brand} ${product.model}`;
   const discount = discountPercent(product);
+  const out = product.stock === 0;
   const inCompare = mounted && compareSlugs.includes(product.slug);
   const compareFull = mounted && compareSlugs.length >= COMPARE_LIMIT && !inCompare;
-  const out = product.stock === 0;
+  const wished = mounted && wishSlugs.includes(product.slug);
+  const added = mounted && inCart;
+
+  const platform = product.platform ? platformBySlug.get(product.platform)?.name : undefined;
+  const powerLabel =
+    product.power === "corded"
+      ? dict.catalog.cordedOne
+      : product.power === "cordless"
+        ? dict.catalog.cordlessOne
+        : undefined;
+  const meta = [keyValue(product, locale), platform ?? powerLabel].filter(Boolean).join(" · ");
 
   return (
     <article className="group relative flex h-full flex-col">
-      <div className="relative overflow-hidden rounded-[18px] bg-ink-800 transition-colors duration-300 group-hover:bg-ink-750">
-        <Link href={productHref(locale, product.slug)} className="block">
-          <div className="relative aspect-square">
-            <Image
-              src={imageOf(product)}
-              alt={`${brand?.name} ${product.model}`}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1280px) 30vw, 300px"
-              priority={priority}
-              className={`object-contain p-6 transition-transform duration-500 group-hover:scale-105 ${
-                out ? "opacity-40" : ""
-              }`}
-            />
-          </div>
-        </Link>
+      <Link href={productHref(locale, product.slug)} className="relative block">
+        <span className={`relative block ${frame[size]}`}>
+          <Image
+            src={imageOf(product)}
+            alt={name}
+            fill
+            sizes="(max-width: 768px) 50vw, (max-width: 1280px) 33vw, 320px"
+            priority={priority}
+            className={`object-contain transition-transform duration-500 group-hover:scale-105 ${
+              out ? "opacity-55" : ""
+            }`}
+          />
+        </span>
+      </Link>
 
-        {discount ? (
-          <span className="absolute left-4 top-4 rounded-full bg-signal px-2.5 py-1 text-[12px] font-semibold text-black">
-            −{discount}%
-          </span>
-        ) : null}
+      {discount ? (
+        <span className="pointer-events-none absolute left-0 top-0 inline-flex h-[26px] items-center rounded-full bg-signal px-2.5 text-[13px] font-semibold text-black">
+          −{discount}%
+        </span>
+      ) : product.badges.includes("new") ? (
+        <span className="pointer-events-none absolute left-0 top-0 inline-flex h-[26px] items-center rounded-full border border-signal px-2.5 text-[13px] font-medium text-signal-text">
+          {dict.common.new}
+        </span>
+      ) : null}
 
+      <div className="absolute right-0 top-0 flex">
         <button
           type="button"
           onClick={() => toggleCompare(product.slug)}
           disabled={compareFull}
-          aria-label={dict.product.compare}
-          className={`absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full transition-all duration-300 ${
-            inCompare
-              ? "bg-signal text-black opacity-100"
-              : "bg-ink-700/80 text-bone-dim opacity-0 backdrop-blur group-hover:opacity-100 hover:text-bone"
-          }`}
+          aria-pressed={inCompare}
+          aria-label={inCompare ? dict.product.compareRemove(name) : dict.product.compareAdd(name)}
+          className={`icon-btn disabled:opacity-40 ${inCompare ? "!text-signal-text" : ""}`}
         >
-          <IconCompare className="h-4 w-4" />
+          <IconCompare className="h-5 w-5" />
         </button>
-
         <button
           type="button"
-          onClick={() => add(product.slug)}
-          disabled={out}
-          className={`absolute inset-x-3 bottom-3 flex h-11 translate-y-3 items-center justify-center gap-2 rounded-full text-[14px] font-semibold opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 ${
-            out
-              ? "cursor-not-allowed bg-ink-700 text-bone-faint"
-              : mounted && inCart
-                ? "bg-stock text-ink-900"
-                : "bg-signal text-black hover:bg-signal-hot"
-          }`}
+          onClick={() => toggleWish(product.slug)}
+          aria-pressed={wished}
+          aria-label={wished ? dict.product.wishlistRemove(name) : dict.product.wishlistAdd(name)}
+          className={`icon-btn ${wished ? "!text-signal-text" : ""}`}
         >
-          {mounted && inCart ? <IconCheck className="h-4 w-4" /> : <IconCart className="h-4 w-4" />}
-          {out ? dict.stock.out : mounted && inCart ? dict.product.inCart : dict.product.addToCart}
+          <IconHeart className="h-5 w-5" filled={wished} />
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col px-1 pt-4">
-        <span className="text-[13px] text-bone-faint">{brand?.name}</span>
+      <div className={`mt-3.5 flex flex-1 flex-col ${out ? "opacity-55" : ""}`}>
+        <span className="text-sm text-bone-dim">{brand}</span>
         <Link
           href={productHref(locale, product.slug)}
-          className="mt-1 text-[16px] leading-snug text-bone transition-colors hover:text-signal"
+          className="mt-1 text-[19px] font-medium leading-snug text-bone transition-colors hover:text-signal-text"
         >
           {product.model}
         </Link>
+        <span className="mt-1 text-sm text-bone-dim">{meta}</span>
 
-        <div className="mt-auto flex items-baseline gap-2.5 pt-3">
-          <span className="t-num text-[20px] text-bone">
-            {price(product.price)} <span className="font-normal text-bone-dim">₴</span>
-          </span>
+        <div className="mt-3 flex flex-wrap items-baseline gap-x-3">
+          <span className="t-price text-2xl text-bone">{price(product.price)} ₴</span>
           {product.oldPrice ? (
-            <span className="t-num text-[14px] font-normal text-bone-faint line-through">
-              {price(product.oldPrice)}
-            </span>
+            <span className="text-[15px] text-bone-dim line-through">{price(product.oldPrice)}</span>
           ) : null}
         </div>
       </div>
+
+      {!out && product.stock <= 5 ? (
+        <span className="mt-1.5 text-sm text-signal-text">{dict.stock.low(product.stock)}</span>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => add(product.slug)}
+        disabled={out}
+        className={`ghost-btn mt-4 w-full ${added ? "!border-stock !text-stock" : ""}`}
+      >
+        {added ? <IconCheck className="h-[18px] w-[18px]" /> : null}
+        {out ? dict.stock.out : added ? dict.product.inCart : dict.product.addToCart}
+      </button>
     </article>
   );
 }

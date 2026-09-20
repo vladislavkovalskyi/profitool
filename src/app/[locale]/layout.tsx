@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { CompareBar } from "@/components/catalog/compare-bar";
 import { LocaleProvider } from "@/i18n/context";
+import { THEME_SCRIPT } from "@/lib/theme";
 
 /** Заголовки, цены, слово в логотипе. Полная кириллица, включая ґ є і ї. */
 const unbounded = Unbounded({
@@ -34,6 +35,8 @@ export async function generateMetadata({ params }: LocaleParams): Promise<Metada
   const { locale } = await params;
   const dict = getDict(isLocale(locale) ? locale : "ua");
   return {
+    // Адрес нужен, чтобы OG-картинка получила полный URL. Настоящий домен задаётся в NEXT_PUBLIC_SITE_URL.
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
     title: dict.meta.title,
     description: dict.meta.description,
     icons: {
@@ -64,7 +67,12 @@ export default async function LocaleLayout({
     <html
       lang={htmlLang[typed]}
       className={`${unbounded.variable} ${golos.variable}`}
+      suppressHydrationWarning
     >
+      <head>
+        {/* Тема до первой отрисовки, иначе светлая тема мигает чёрным. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>
         <LocaleProvider locale={typed}>
           <Header />

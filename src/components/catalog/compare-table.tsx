@@ -1,48 +1,42 @@
 "use client";
 
 import Image from "next/image";
+import { useMounted } from "@/lib/use-mounted";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useI18n } from "@/i18n/context";
 import { productBySlug } from "@/data/products";
-import { brandBySlug, platformBySlug, specLabels } from "@/data/taxonomy";
-import { localize, type SpecKey } from "@/data/types";
-import { href, imageOf, price, productHref } from "@/lib/shop";
+import { brandBySlug, categoryBySlug, specLabels } from "@/data/taxonomy";
+import { localize, type Product, type SpecKey } from "@/data/types";
+import { categoryHref, href, imageOf, price, productHref } from "@/lib/shop";
 import { useCart, useCompare } from "@/store/shop";
-import { IconArrow, IconCart, IconCheck, IconClose, IconCompare } from "@/components/ui/icons";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconCheck, IconClose, IconCompare } from "@/components/ui/icons";
 
 export function CompareTable() {
   const { locale, dict } = useI18n();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
+  const [onlyDiff, setOnlyDiff] = useState(false);
   const slugs = useCompare((state) => state.slugs);
   const toggle = useCompare((state) => state.toggle);
+  const clear = useCompare((state) => state.clear);
   const add = useCart((state) => state.add);
   // Селектор обязан возвращать стабильную ссылку: .map() создаёт новый массив
   // на каждый рендер и уводит подписку в бесконечный цикл.
   const cartItems = useCart((state) => state.items);
 
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return <div className="h-[40vh]" />;
+  if (!mounted) return <div className="min-h-[40vh]" role="status" aria-busy="true" />;
 
-  const items = slugs.map((slug) => productBySlug.get(slug)).filter((p) => p !== undefined);
+  const items = slugs.map((slug) => productBySlug.get(slug)).filter((p): p is Product => p !== undefined);
 
   if (items.length === 0) {
     return (
-      <div className="rounded-[24px] bg-ink-800 px-6 py-24 text-center">
-        <IconCompare className="mx-auto h-12 w-12 text-ink-500" strokeWidth={1} />
-        <p className="t-h2 mt-6 text-bone">
-          {locale === "ua" ? "Поки нічого не обрано" : "Пока ничего не выбрано"}
-        </p>
-        <p className="mt-4 text-bone-dim">
-          {locale === "ua"
-            ? "Познач до чотирьох позицій у каталозі — порівняємо характеристики поруч."
-            : "Отметь до четырёх позиций в каталоге — сравним характеристики рядом."}
-        </p>
-        <Link href={href(locale, "/catalog")} className="signal-btn mt-8 inline-flex">
-          {dict.catalog.all}
-          <IconArrow className="h-4 w-4" />
-        </Link>
-      </div>
+      <EmptyState
+        icon={<IconCompare className="h-12 w-12" strokeWidth={1.2} />}
+        title={dict.compare.empty}
+        text={dict.compare.emptyText}
+        cta={{ href: href(locale, "/catalog"), label: dict.catalog.all }}
+      />
     );
   }
 
@@ -54,110 +48,135 @@ export function CompareTable() {
     }
   }
 
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[640px] table-fixed border-collapse">
-        <thead>
-          <tr>
-            <th className="w-[160px] align-top" />
-            {items.map((product) => {
-              const brand = brandBySlug.get(product.brand);
-              const platform = product.platform ? platformBySlug.get(product.platform) : null;
-              const inCart = cartItems.some((item) => item.slug === product.slug);
-              return (
-                <th key={product.slug} className="p-3 align-top">
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => toggle(product.slug)}
-                      aria-label={dict.cart.remove}
-                      className="absolute right-2 top-2 z-10 grid h-8 w-8 place-items-center rounded-full bg-ink-700/90 text-bone-dim backdrop-blur transition-colors hover:text-signal"
-                    >
-                      <IconClose className="h-3.5 w-3.5" />
-                    </button>
+  const rows = [
+    ...keys.map((key) => ({
+      key,
+      label: specLabels[key][locale],
+      values: items.map((product) => {
+        const spec = product.specs.find(([specKey]) => specKey === key);
+        return spec ? localize(spec[1], locale) : null;
+      }),
+    })),
+    {
+      key: "warranty",
+      label: dict.product.warranty,
+      values: items.map((product) => dict.product.warrantyValue(product.warranty)),
+    },
+  ].map((row) => ({ ...row, differs: new Set(row.values).size > 1 }));
 
-                    <Link href={productHref(locale, product.slug)} className="block">
-                      <span className="relative block aspect-square overflow-hidden rounded-[18px] bg-ink-800">
+  const shown = onlyDiff ? rows.filter((row) => row.differs) : rows;
+  const firstCategory = categoryBySlug.get(items[0].category);
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <span className="text-[17px] text-bone-dim">
+          {firstCategory && items.every((item) => item.category === firstCategory.slug)
+            ? `${firstCategory.name[locale]}, `
+            : ""}
+          {dict.compare.count(items.length)}
+        </span>
+        <label className="flex min-h-11 items-center gap-3 text-base text-bone-dim">
+          <input
+            type="checkbox"
+            checked={onlyDiff}
+            onChange={(event) => setOnlyDiff(event.target.checked)}
+            className="check"
+          />
+          {dict.compare.onlyDiff}
+        </label>
+        <button type="button" onClick={clear} className="ghost-btn btn-sm sm:ml-auto">
+          {dict.compare.clear}
+        </button>
+      </div>
+
+      <div className="-mx-[var(--gutter)] mt-6 overflow-x-auto px-[var(--gutter)]">
+        <table className="w-full min-w-[760px] table-fixed border-collapse">
+          <caption className="sr-only">{dict.compare.title}</caption>
+          <thead>
+            <tr>
+              <td className="w-[150px] lg:w-[220px]" />
+              {items.map((product) => {
+                const brand = brandBySlug.get(product.brand)?.name ?? product.brand;
+                const inCart = cartItems.some((item) => item.slug === product.slug);
+                const out = product.stock === 0;
+                return (
+                  <th key={product.slug} scope="col" className="px-4 pb-6 text-left align-top font-normal">
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => toggle(product.slug)}
+                        aria-label={dict.product.compareRemove(`${brand} ${product.model}`)}
+                        className="icon-btn -mr-2"
+                      >
+                        <IconClose className="h-[18px] w-[18px]" />
+                      </button>
+                    </div>
+                    <Link href={productHref(locale, product.slug)} className="group block">
+                      <span className="relative block h-[180px]">
                         <Image
                           src={imageOf(product)}
-                          alt={product.model}
+                          alt={`${brand} ${product.model}`}
                           fill
-                          sizes="220px"
-                          className="object-contain p-3"
+                          sizes="260px"
+                          className="object-contain transition-transform duration-500 group-hover:scale-105"
                         />
                       </span>
-                      <span className="mt-3 block text-left text-[13px] text-bone-faint">{brand?.name}</span>
-                      <span className="mt-1.5 block text-left text-[15px] font-normal leading-tight text-bone">
+                      <span className="mt-3 block text-sm text-bone-dim">{brand}</span>
+                      <span className="mt-1 block text-[19px] font-medium leading-snug text-bone">
                         {product.model}
                       </span>
                     </Link>
-
-                    <p className="t-num mt-3 text-left text-xl font-bold text-bone">
-                      {price(product.price)}
-                      <span className="ml-1 font-ui text-sm font-normal text-bone-dim">₴</span>
-                    </p>
-
-                    {platform ? (
-                      <p className="mt-2 text-left text-[12px] text-bone-faint">{platform.name}</p>
-                    ) : null}
-
+                    <p className="t-price mt-2.5 text-2xl">{price(product.price)} ₴</p>
                     <button
                       type="button"
                       onClick={() => add(product.slug)}
-                      disabled={product.stock === 0}
-                      className={`mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-full text-[14px] font-semibold transition-colors ${
-                        product.stock === 0
-                          ? "cursor-not-allowed bg-ink-700 text-bone-faint"
-                          : inCart
-                            ? "bg-stock text-ink-900"
-                            : "bg-signal text-black hover:bg-signal-hot"
-                      }`}
+                      disabled={out}
+                      className="signal-btn btn-sm mt-4 w-full"
                     >
-                      {inCart ? <IconCheck className="h-4 w-4" /> : <IconCart className="h-4 w-4" />}
-                      {inCart ? dict.product.inCart : dict.product.addToCart}
+                      {inCart ? <IconCheck className="h-[18px] w-[18px]" /> : null}
+                      {out ? dict.stock.out : inCart ? dict.product.inCart : dict.product.addToCart}
                     </button>
-                  </div>
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-
-        <tbody>
-          {keys.map((key, index) => (
-            <tr key={key} className={index % 2 ? "bg-ink-850/60" : ""}>
-              <td className="border-b border-[var(--hair)] px-3 py-3.5 align-middle text-[13px] text-bone-faint">
-                {specLabels[key][locale]}
-              </td>
-              {items.map((product) => {
-                const spec = product.specs.find(([specKey]) => specKey === key);
-                return (
-                  <td
-                    key={product.slug}
-                    className="t-num border-b border-[var(--hair)] px-3 py-3.5 text-center text-sm text-bone"
-                  >
-                    {spec ? localize(spec[1], locale) : <span className="text-bone-faint">—</span>}
-                  </td>
+                  </th>
                 );
               })}
             </tr>
-          ))}
+          </thead>
 
-          <tr>
-            <td className="border-b border-[var(--hair)] px-3 py-3.5 text-[13px] text-bone-faint">
-              {dict.product.warranty}
-            </td>
-            {items.map((product) => (
-              <td
-                key={product.slug}
-                className="t-num border-b border-[var(--hair)] px-3 py-3.5 text-center text-sm text-bone"
-              >
-                {dict.product.warrantyValue(product.warranty)}
-              </td>
+          <tbody>
+            {shown.map((row) => (
+              <tr key={row.key}>
+                <th
+                  scope="row"
+                  className="sticky left-0 z-10 border-t border-[var(--hair)] bg-ink-900 py-4 pr-4 text-left text-base font-normal text-bone-dim"
+                >
+                  {row.label}
+                </th>
+                {row.values.map((value, index) => (
+                  <td
+                    key={items[index].slug}
+                    className={`border-t border-[var(--hair)] px-4 py-4 text-base ${
+                      row.differs ? "text-bone" : "text-bone-dim"
+                    }`}
+                  >
+                    {value ?? "—"}
+                  </td>
+                ))}
+              </tr>
             ))}
-          </tr>
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-8">
+        <Link
+          href={firstCategory ? categoryHref(locale, firstCategory.slug) : href(locale, "/catalog")}
+          className="ghost-btn"
+        >
+          {dict.compare.add}
+          {firstCategory ? ` ${firstCategory.name[locale].toLowerCase()}` : ""}
+        </Link>
+      </div>
     </div>
   );
 }
