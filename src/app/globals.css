@@ -1,26 +1,299 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────
+   PROFITOOL · дизайн-система «Цех»
+   Графит, металл, один сигнальный цвет на весь экран.
+   ───────────────────────────────────────────────────────────── */
+
+@theme {
+  /* поверхности, от самой глубокой к самой светлой */
+  --color-ink-900: #000000;
+  --color-ink-850: #0a0a0b;
+  --color-ink-800: #0e0f11;
+  --color-ink-750: #141517;
+  --color-ink-700: #191a1d;
+  --color-ink-600: #24282c;
+  --color-ink-500: #343a3f;
+
+  /* текст: тёплый белый вместо чистого #FFF, он режет глаз на графите */
+  --color-bone: #edeae4;
+  --color-bone-dim: #9a9b97;
+  --color-bone-faint: #6b6d6a;
+
+  /* сигнальный. Появляется только там, где надо нажать */
+  --color-signal: #ff4a00;
+  --color-signal-hot: #ff6a2b;
+  --color-signal-deep: #c23200;
+
+  /* склад */
+  --color-stock: #a6c34f;
+  --color-warn: #ffb020;
+
+  --font-display: var(--font-sofia), "Arial Narrow", sans-serif;
+  --font-ui: var(--font-geologica), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geologica), ui-sans-serif, sans-serif;
+
+  --radius-metal: 10px;
+
+  --container-shell: 1480px;
+
+  --ease-cut: cubic-bezier(0.2, 0.9, 0.24, 1);
+  --ease-metal: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --hair: rgba(255, 255, 255, 0.07);
+  --hair-strong: rgba(255, 255, 255, 0.13);
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --gutter: 24px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  * {
+    min-width: 0;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  html {
+    background: var(--color-ink-900);
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--color-ink-900);
+    color: var(--color-bone);
+    font-family: var(--font-ui);
+    font-variation-settings: "SHRP" 28;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--color-signal);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  ::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-ink-900);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-ink-600);
+    border: 3px solid var(--color-ink-900);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-signal-deep);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ── Типографика ───────────────────────────────────────────── */
+
+@utility t-hero {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(3rem, 7.4vw, 8.2rem);
+  line-height: 0.86;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+@utility t-h1 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(2.4rem, 5vw, 4.6rem);
+  line-height: 0.88;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+@utility t-h2 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.75rem, 3vw, 2.75rem);
+  line-height: 0.94;
+  text-transform: uppercase;
+}
+
+@utility t-h3 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.4rem;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+/* Служебная надпись: артикул, метка склада, номер раздела. */
+@utility t-tag {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+@utility t-num {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+}
+
+/* ── Металл ────────────────────────────────────────────────── */
+
+@utility shell {
+  width: 100%;
+  max-width: var(--container-shell);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+@utility hair {
+  border: 1px solid var(--hair);
+}
+@utility hair-t {
+  border-top: 1px solid var(--hair);
+}
+@utility hair-b {
+  border-bottom: 1px solid var(--hair);
+}
+@utility hair-l {
+  border-left: 1px solid var(--hair);
+}
+@utility hair-r {
+  border-right: 1px solid var(--hair);
+}
+
+@utility edge {
+  box-shadow: var(--edge);
+}
+
+/* Сигнальная кнопка. Щёлкает вниз при нажатии, как тумблер. */
+@utility signal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  background: var(--color-signal);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0;
+  padding: 1rem 2rem;
+  border-radius: 999px;
+  transition: background 0.2s var(--ease-cut);
+
+  &:hover {
+    background: var(--color-signal-hot);
+  }
+  &:active {
+    transform: translateY(1px);
+  }
+  &:disabled {
+    background: var(--color-ink-600);
+    color: var(--color-bone-faint);
+    cursor: not-allowed;
+  }
+}
+
+@utility ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  border: 1px solid var(--hair-strong);
+  color: var(--color-bone);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0;
+  padding: 1rem 2rem;
+  border-radius: 999px;
+  transition:
+    border-color 0.2s var(--ease-cut),
+    background 0.2s var(--ease-cut);
+
+  &:hover {
+    border-color: var(--color-signal);
+    background: color-mix(in srgb, var(--color-signal) 8%, transparent);
+  }
+  &:active {
+    transform: translateY(1px);
+  }
+}
+
+/* Шильдик: строка характеристики с точечным лидером до значения. */
+@utility spec-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--hair);
+}
+
+@utility leader {
+  color: var(--color-bone-dim);
+}
+
+/* ── Появление ─────────────────────────────────────────────── */
+
+@utility rise {
+  animation: rise 0.7s var(--ease-metal) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sweep {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
