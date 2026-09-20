@@ -73,7 +73,8 @@ export default async function LocaleLayout({
         {/* Тема до первой отрисовки, иначе светлая тема мигает чёрным. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body>
+      {/* Расширения браузера дописывают свои атрибуты в body до гидратации, React ругается на несовпадение. */}
+      <body suppressHydrationWarning>
         <LocaleProvider locale={typed}>
           <Header />
           <main className="min-h-[60vh]">{children}</main>
