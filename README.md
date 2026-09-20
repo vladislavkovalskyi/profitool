@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Profitool
 
-## Getting Started
+Интернет-магазин строительного инструмента: перфораторы, шурупокруты, УШМ, пилы, шлифмашины,
+измерительный инструмент, оснастка и каски. Украинский и русский, цены в гривне.
 
-First, run the development server:
+Главная идея интерфейса — подбор по аккумуляторной платформе. Покупатель отмечает, что у него
+уже есть (Makita LXT, DeWalt XR, Milwaukee M18 и так далее), и каталог оставляет только
+совместимое. Выбор сохраняется между визитами.
+
+## Запуск
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Открыть http://localhost:3000 — перебросит на `/ua`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm build        # прод-сборка
+pnpm start        # запуск собранного
+pnpm lint
+npx tsc --noEmit
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Что внутри
 
-## Learn More
+Next.js 16 (App Router), React 19, TypeScript, Tailwind v4, zustand, react-hook-form + zod.
+Бэкенда нет: каталог лежит в TypeScript-модулях, корзина в localStorage, оформление заказа
+заканчивается экраном подтверждения и никуда не отправляется.
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/app/[locale]/   страницы: главная, каталог, товар, корзина, оформление, поиск, сравнение
+src/components/     шапка, подвал, карточки, фильтры, блок покупки, формы
+src/data/           каталог: 49 позиций, 8 категорий, 6 брендов, 7 платформ
+src/i18n/           словари ua/ru
+src/lib/shop.ts     цены, фильтры, выборки
+src/store/shop.ts   корзина, сравнение, платформа
+tools/products/     Blender-рендеры и подготовка фотографий
+docs/dev/           история работ
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Картинки
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Фотографии товаров — настоящие packshot с вырезанным фоном, лежат как
+`public/products/{tool}-{brand}-photo.png`. Иконки разделов — стеклянные рендеры из Blender,
+`{tool}-makita-glass.png`.
 
-## Deploy on Vercel
+Пересобрать фотографии из исходников:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+python3 tools/products/prepare_photos.py
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Перерисовать стеклянные иконки (нужен Blender 5.2 LTS):
+
+```bash
+blender -b -P tools/products/render_products.py -- --out public/products --style glass \
+        --resolution 900 --samples 150
+```
+
+После любой перегенерации очистить кэш оптимизатора: `rm -rf .next/cache/images`.
+
+## Оговорки
+
+Демонстрационный проект. Заказы не обрабатываются, оплата не подключена, остатки на складе
+зашиты в данные. Фотографии товаров взяты из открытого каталога розничного магазина для
+прототипа: для публичного запуска нужны права от поставщика.
+
+Подробности работы с кодом — в `CLAUDE.md`.
